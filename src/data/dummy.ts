@@ -42,14 +42,14 @@ export const collections: Collection[] = [
     slug: 'earrings',
     title: 'Diamond Earrings',
     description: 'From diamond studs to chandelier earrings—find your signature sparkle in our premium collection.',
-    banner: 'https://images.unsplash.com/photo-1617038260897-9b9f3b9f0ee0?q=80&w=1200&auto=format&fit=crop',
+    banner: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?q=80&w=1200&auto=format&fit=crop',
     categories: ['earrings']
   },
   {
     slug: 'bracelets',
     title: 'Diamond Bracelets',
     description: 'Delicate diamond tennis bracelets and bangles designed for effortless luxury and elegance.',
-    banner: 'https://images.unsplash.com/photo-1603575449299-5f28a0132b29?q=80&w=1200&auto=format&fit=crop',
+    banner: 'https://images.unsplash.com/photo-1611652022419-a9419f74343d?q=80&w=1200&auto=format&fit=crop',
     categories: ['bracelets']
   },
   {
