@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Heart, ShoppingBag, User, Menu, X, Diamond, Crown, Sparkles, Star, Gift, Gem } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Logo, LogoMark } from '@/components/ui/logo'
 import { useCartStore, useWishlistStore, useUIStore } from '@/store'
 import { cn } from '@/lib/utils'
 
@@ -139,39 +140,11 @@ export function Header() {
               {/* Logo */}
               <Link href="/" className="flex-shrink-0">
                 <motion.div
-                  className="flex items-center space-x-3"
                   whileHover={{ scale: 1.02 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <motion.div 
-                    className="w-10 h-10 bg-gradient-to-br from-champagne-gold to-amber-600 rounded-full flex items-center justify-center shadow-lg"
-                    whileHover={{ 
-                      scale: 1.1,
-                      boxShadow: "0 10px 25px rgba(212, 175, 55, 0.4)"
-                    }}
-                    animate={{ 
-                      rotate: [0, 360],
-                      boxShadow: [
-                        "0 4px 15px rgba(212, 175, 55, 0.2)",
-                        "0 8px 25px rgba(212, 175, 55, 0.4)",
-                        "0 4px 15px rgba(212, 175, 55, 0.2)"
-                      ]
-                    }}
-                    transition={{ 
-                      rotate: { duration: 20, repeat: Infinity, ease: "linear" },
-                      boxShadow: { duration: 3, repeat: Infinity, ease: "easeInOut" }
-                    }}
-                  >
-                    <Diamond className="h-5 w-5 text-white" />
-                  </motion.div>
-                  <div>
-                    <h1 className="text-2xl lg:text-3xl font-playfair font-bold text-gradient tracking-tight">
-                      AASHNI
-                    </h1>
-                    <p className="text-xs text-gray-500 font-medium tracking-widest uppercase">
-                      Premium Jewelry
-                    </p>
-                  </div>
+                  <Logo width={180} height={60} className="hidden sm:block" />
+                  <LogoMark size={40} className="block sm:hidden" />
                 </motion.div>
               </Link>
 
@@ -465,9 +438,7 @@ export function Header() {
             >
               <div className="flex h-16 items-center justify-between px-6 border-b border-champagne-gold/10">
                 <Link href="/" onClick={closeMobileMenu}>
-                  <h1 className="text-2xl font-playfair font-bold text-gradient">
-                    Aashni
-                  </h1>
+                  <Logo width={140} height={50} />
                 </Link>
                 <Button
                   variant="ghost"
