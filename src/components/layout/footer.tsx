@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { Instagram, Facebook, Twitter, Mail, Phone, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Logo } from '@/components/ui/logo'
 
 const footerSections = [
   {
@@ -101,9 +102,7 @@ export function Footer() {
             viewport={{ once: true }}
           >
             <Link href="/" className="inline-block mb-6">
-              <h2 className="text-3xl font-playfair font-bold text-gradient">
-                Aashni
-              </h2>
+              <Logo width={160} height={55} />
             </Link>
             <p className="text-gray-600 mb-6">
               Crafting timeless elegance with contemporary design. Each piece tells a story of luxury, heritage, and exceptional craftsmanship.

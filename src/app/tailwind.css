@@ -2716,10 +2716,6 @@ h1, h2, h3, h4, h5, h6 {
   --tw-gradient-to: #f59e0b var(--tw-gradient-to-position);
 }
 
-.to-amber-600 {
-  --tw-gradient-to: #d97706 var(--tw-gradient-to-position);
-}
-
 .to-amber-700 {
   --tw-gradient-to: #b45309 var(--tw-gradient-to-position);
 }
@@ -3343,10 +3339,6 @@ h1, h2, h3, h4, h5, h6 {
 
 .tracking-wider {
   letter-spacing: 0.05em;
-}
-
-.tracking-widest {
-  letter-spacing: 0.1em;
 }
 
 .text-amber-400 {
@@ -4749,6 +4741,14 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @media (min-width: 640px) {
+  .sm\:block {
+    display: block;
+  }
+
+  .sm\:hidden {
+    display: none;
+  }
+
   .sm\:h-80 {
     height: 20rem;
   }
