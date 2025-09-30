@@ -1,0 +1,541 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Grid, List, Filter, Star, Heart, ShoppingBag, Eye, Sparkles, Sun, Coffee, Briefcase } from 'lucide-react'
+import Image from 'next/image'
+import Link from 'next/link'
+
+interface Product {
+  id: string
+  name: string
+  price: number
+  originalPrice?: number
+  image: string
+  category: string
+  rating: number
+  reviews: number
+  isNew?: boolean
+  isBestseller?: boolean
+  occasion: string
+  style: string
+}
+
+const dailyWearProducts: Product[] = [
+  {
+    id: 'dw1',
+    name: 'Minimalist Gold Stud Earrings',
+    price: 2499,
+    originalPrice: 2999,
+    image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400&h=400&fit=crop&crop=center',
+    category: 'earrings',
+    rating: 4.8,
+    reviews: 156,
+    isNew: true,
+    occasion: 'office',
+    style: 'minimalist'
+  },
+  {
+    id: 'dw2',
+    name: 'Delicate Chain Bracelet',
+    price: 3299,
+    image: 'https://images.unsplash.com/photo-1611652022419-a9419f74343d?w=400&h=400&fit=crop&crop=center',
+    category: 'bracelets',
+    rating: 4.9,
+    reviews: 89,
+    isBestseller: true,
+    occasion: 'casual',
+    style: 'delicate'
+  },
+  {
+    id: 'dw3',
+    name: 'Simple Gold Band Ring',
+    price: 4599,
+    image: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400&h=400&fit=crop&crop=center',
+    category: 'rings',
+    rating: 4.7,
+    reviews: 203,
+    occasion: 'everyday',
+    style: 'classic'
+  },
+  {
+    id: 'dw4',
+    name: 'Layered Pendant Necklace',
+    price: 5299,
+    originalPrice: 5999,
+    image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=400&h=400&fit=crop&crop=center',
+    category: 'necklaces',
+    rating: 4.8,
+    reviews: 134,
+    occasion: 'casual',
+    style: 'trendy'
+  },
+  {
+    id: 'dw5',
+    name: 'Geometric Hoop Earrings',
+    price: 2899,
+    image: 'https://images.unsplash.com/photo-1506630448388-4e683c67ddb0?w=400&h=400&fit=crop&crop=center',
+    category: 'earrings',
+    rating: 4.6,
+    reviews: 78,
+    isNew: true,
+    occasion: 'office',
+    style: 'modern'
+  },
+  {
+    id: 'dw6',
+    name: 'Stackable Ring Set',
+    price: 3799,
+    image: 'https://images.unsplash.com/photo-1543294001-f7cd5d7fb516?w=400&h=400&fit=crop&crop=center',
+    category: 'rings',
+    rating: 4.9,
+    reviews: 167,
+    isBestseller: true,
+    occasion: 'everyday',
+    style: 'trendy'
+  }
+]
+
+const categories = ['all', 'earrings', 'rings', 'necklaces', 'bracelets']
+const occasions = ['all', 'office', 'casual', 'everyday']
+const styles = ['all', 'minimalist', 'delicate', 'classic', 'trendy', 'modern']
+const priceRanges = [
+  { label: 'All Prices', min: 0, max: Infinity },
+  { label: 'Under ₹3,000', min: 0, max: 3000 },
+  { label: '₹3,000 - ₹5,000', min: 3000, max: 5000 },
+  { label: 'Above ₹5,000', min: 5000, max: Infinity }
+]
+
+export default function DailyWearPage() {
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [selectedOccasion, setSelectedOccasion] = useState('all')
+  const [selectedStyle, setSelectedStyle] = useState('all')
+  const [selectedPriceRange, setSelectedPriceRange] = useState(0)
+  const [showFilters, setShowFilters] = useState(false)
+  const [filteredProducts, setFilteredProducts] = useState(dailyWearProducts)
+  const [favorites, setFavorites] = useState<string[]>([])
+
+  useEffect(() => {
+    let filtered = dailyWearProducts.filter(product => {
+      const categoryMatch = selectedCategory === 'all' || product.category === selectedCategory
+      const occasionMatch = selectedOccasion === 'all' || product.occasion === selectedOccasion
+      const styleMatch = selectedStyle === 'all' || product.style === selectedStyle
+      const priceMatch = product.price >= priceRanges[selectedPriceRange].min && 
+                        product.price <= priceRanges[selectedPriceRange].max
+      
+      return categoryMatch && occasionMatch && styleMatch && priceMatch
+    })
+    
+    setFilteredProducts(filtered)
+  }, [selectedCategory, selectedOccasion, selectedStyle, selectedPriceRange])
+
+  const toggleFavorite = (productId: string) => {
+    setFavorites(prev => 
+      prev.includes(productId) 
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId]
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-orange-50">
+      {/* Premium Hero Section */}
+      <section className="relative py-2 md:py-4 px-4 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-amber-100/30 to-orange-100/30" />
+        
+        {/* Elegant Background Pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute top-20 left-20 w-32 h-32 border border-amber-300 rounded-full"></div>
+          <div className="absolute top-40 right-32 w-24 h-24 border border-orange-300 rounded-full"></div>
+          <div className="absolute bottom-32 left-1/3 w-20 h-20 border border-amber-400 rounded-full"></div>
+        </div>
+        
+        <motion.div 
+          className="max-w-7xl mx-auto text-center relative z-10"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+        >
+          {/* Premium Title Section */}
+          <motion.div 
+            className="mb-2"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1, delay: 0.2 }}
+          >
+            <div className="flex items-center justify-center gap-4 mb-3">
+              <div className="w-16 h-px bg-gradient-to-r from-transparent via-amber-400 to-transparent"></div>
+              <Sun className="w-6 h-6 text-amber-600" />
+              <div className="w-16 h-px bg-gradient-to-r from-transparent via-amber-400 to-transparent"></div>
+            </div>
+            
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-light tracking-wide mb-3">
+              <span className="text-amber-900 font-serif">
+                Daily Wear
+              </span>
+            </h1>
+            
+            <div className="flex items-center justify-center gap-4 mt-3">
+              <div className="w-12 h-px bg-gradient-to-r from-transparent via-orange-400 to-transparent"></div>
+              <Coffee className="w-5 h-5 text-orange-600" />
+              <div className="w-12 h-px bg-gradient-to-r from-transparent via-orange-400 to-transparent"></div>
+            </div>
+          </motion.div>
+          
+          <motion.p 
+            className="text-lg md:text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed font-light mb-0"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+          >
+            Effortlessly elegant pieces designed for your everyday moments. From morning meetings to evening coffee dates, 
+            discover jewelry that complements your daily style with comfort and sophistication.
+          </motion.p>
+          
+          {/* Premium Floating Elements */}
+          <div className="absolute top-10 left-16 animate-float">
+            <Sparkles className="w-6 h-6 text-amber-400 opacity-60" />
+          </div>
+          <div className="absolute top-20 right-24 animate-float-delayed">
+            <Briefcase className="w-8 h-8 text-orange-400 opacity-60" />
+          </div>
+          <div className="absolute bottom-10 left-1/4 animate-pulse">
+            <div className="w-2 h-2 bg-amber-400 rounded-full"></div>
+          </div>
+          <div className="absolute bottom-16 right-1/3 animate-pulse">
+            <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* Premium Filters and Controls */}
+      <section className="px-4 py-4 bg-white/90 backdrop-blur-md border-y border-amber-200/50 shadow-sm">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            {/* Premium Filter Toggle */}
+            <motion.div className="flex items-center gap-4">
+              <motion.button
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-100 to-orange-100 hover:from-amber-200 hover:to-orange-200 rounded-full transition-all duration-300 shadow-md hover:shadow-lg border border-amber-200/50"
+                whileHover={{ scale: 1.02, y: -1 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Filter className="w-4 h-4 text-amber-700" />
+                <span className="font-medium text-amber-800 text-sm">Filters</span>
+              </motion.button>
+              
+              <div className="text-sm text-gray-600 font-light">
+                {filteredProducts.length} pieces
+              </div>
+            </motion.div>
+
+            {/* Premium View Mode Toggle */}
+            <div className="flex items-center gap-4">
+              <span className="text-gray-700 font-medium text-sm">View:</span>
+              <div className="flex bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-1 shadow-inner border border-gray-200/50">
+                <motion.button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded-md transition-all duration-300 ${
+                    viewMode === 'grid' 
+                      ? 'bg-white shadow-md text-amber-700 border border-amber-200/50' 
+                      : 'hover:bg-gray-200/50 text-gray-600'
+                  }`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Grid className="w-4 h-4" />
+                </motion.button>
+                <motion.button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 rounded-md transition-all duration-300 ${
+                    viewMode === 'list' 
+                      ? 'bg-white shadow-md text-amber-700 border border-amber-200/50' 
+                      : 'hover:bg-gray-200/50 text-gray-600'
+                  }`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <List className="w-4 h-4" />
+                </motion.button>
+              </div>
+            </div>
+          </div>
+
+          {/* Filter Panel */}
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-4 p-4 bg-white rounded-xl shadow-lg border border-amber-100"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Category Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    >
+                      {categories.map(category => (
+                        <option key={category} value={category}>
+                          {category.charAt(0).toUpperCase() + category.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Occasion Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Occasion</label>
+                    <select
+                      value={selectedOccasion}
+                      onChange={(e) => setSelectedOccasion(e.target.value)}
+                      className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    >
+                      {occasions.map(occasion => (
+                        <option key={occasion} value={occasion}>
+                          {occasion.charAt(0).toUpperCase() + occasion.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Style Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Style</label>
+                    <select
+                      value={selectedStyle}
+                      onChange={(e) => setSelectedStyle(e.target.value)}
+                      className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    >
+                      {styles.map(style => (
+                        <option key={style} value={style}>
+                          {style.charAt(0).toUpperCase() + style.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Price Range Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Price Range</label>
+                    <select
+                      value={selectedPriceRange}
+                      onChange={(e) => setSelectedPriceRange(Number(e.target.value))}
+                      className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    >
+                      {priceRanges.map((range, index) => (
+                        <option key={index} value={index}>
+                          {range.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </section>
+
+      {/* Premium Products Collection */}
+      <section className="px-4 pt-4 pb-8 bg-gradient-to-b from-white to-amber-50/30">
+        <div className="max-w-7xl mx-auto">
+          {/* Collection Header */}
+          <motion.div 
+            className="text-center mb-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 className="text-2xl md:text-3xl font-light text-gray-800 mb-3">
+              Curated for <span className="font-serif italic text-amber-800">Everyday Elegance</span>
+            </h2>
+            <div className="w-20 h-px bg-gradient-to-r from-transparent via-amber-400 to-transparent mx-auto"></div>
+          </motion.div>
+
+          <motion.div
+            className={`grid gap-6 ${
+              viewMode === 'grid' 
+                ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
+                : 'grid-cols-1 max-w-4xl mx-auto'
+            }`}
+            layout
+          >
+            <AnimatePresence>
+              {filteredProducts.map((product, index) => (
+                <motion.div
+                  key={product.id}
+                  layout
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -30 }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                  className={`group bg-white rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500 overflow-hidden border border-amber-100/50 hover:border-amber-200 ${
+                    viewMode === 'list' ? 'flex' : ''
+                  }`}
+                  whileHover={{ y: -8 }}
+                >
+                  {/* Premium Product Image */}
+                  <div className={`relative overflow-hidden ${viewMode === 'list' ? 'w-80' : 'aspect-square'}`}>
+                    <Image
+                      src={product.image}
+                      alt={product.name}
+                      fill
+                      className="object-cover group-hover:scale-110 transition-transform duration-700"
+                    />
+                    
+                    {/* Premium Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    
+                    {/* Premium Badges */}
+                    <div className="absolute top-6 left-6 flex flex-col gap-3">
+                      {product.isNew && (
+                        <span className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-xs font-medium rounded-full shadow-lg backdrop-blur-sm">
+                          ✨ New Arrival
+                        </span>
+                      )}
+                      {product.isBestseller && (
+                        <span className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-medium rounded-full shadow-lg backdrop-blur-sm">
+                          👑 Bestseller
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => toggleFavorite(product.id)}
+                        className={`p-2 rounded-full backdrop-blur-sm transition-colors ${
+                          favorites.includes(product.id)
+                            ? 'bg-red-500 text-white'
+                            : 'bg-white/80 text-gray-600 hover:bg-red-500 hover:text-white'
+                        }`}
+                      >
+                        <Heart className="w-4 h-4" />
+                      </button>
+                      <button className="p-2 bg-white/80 backdrop-blur-sm rounded-full text-gray-600 hover:bg-amber-500 hover:text-white transition-colors">
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Product Info */}
+                  <div className={`p-6 ${viewMode === 'list' ? 'flex-1' : ''}`}>
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-800 group-hover:text-amber-600 transition-colors">
+                          {product.name}
+                        </h3>
+                        <p className="text-sm text-gray-500 capitalize">
+                          {product.category} • {product.occasion}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Rating */}
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="flex items-center">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-4 h-4 ${
+                              i < Math.floor(product.rating)
+                                ? 'text-amber-400 fill-current'
+                                : 'text-gray-300'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-sm text-gray-600">
+                        {product.rating} ({product.reviews} reviews)
+                      </span>
+                    </div>
+
+                    {/* Price */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-2xl font-bold text-gray-800">
+                        ₹{product.price.toLocaleString()}
+                      </span>
+                      {product.originalPrice && (
+                        <span className="text-lg text-gray-400 line-through">
+                          ₹{product.originalPrice.toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Add to Cart Button */}
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white py-3 rounded-xl font-medium hover:from-amber-600 hover:to-orange-600 transition-all duration-300"
+                    >
+                      <ShoppingBag className="w-5 h-5" />
+                      Add to Cart
+                    </motion.button>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
+
+          {/* No Results */}
+          {filteredProducts.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-16"
+            >
+              <div className="text-6xl mb-4">💍</div>
+              <h3 className="text-2xl font-semibold text-gray-800 mb-2">No products found</h3>
+              <p className="text-gray-600">Try adjusting your filters to see more results.</p>
+            </motion.div>
+          )}
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-16 px-4 bg-gradient-to-r from-amber-100 to-orange-100">
+        <motion.div
+          className="max-w-4xl mx-auto text-center"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          viewport={{ once: true }}
+        >
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-6">
+            Perfect for Every Day
+          </h2>
+          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            Discover jewelry that seamlessly transitions from work to weekend, 
+            adding that perfect touch of elegance to your daily routine.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/collections">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-8 py-4 bg-amber-600 text-white rounded-xl font-medium hover:bg-amber-700 transition-colors"
+              >
+                View All Collections
+              </motion.button>
+            </Link>
+            <Link href="/jewelry-care">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-8 py-4 border-2 border-amber-600 text-amber-600 rounded-xl font-medium hover:bg-amber-600 hover:text-white transition-colors"
+              >
+                Care Guide
+              </motion.button>
+            </Link>
+          </div>
+        </motion.div>
+      </section>
+    </div>
+  )
+}

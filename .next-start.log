@@ -1,0 +1,28 @@
+
+> aashni@1.0.0 prestart
+> npm run css:build
+
+
+> aashni@1.0.0 css:build
+> tailwindcss -i ./src/app/globals.css -o ./src/app/tailwind.css
+
+
+Rebuilding...
+
+Done in 994ms.
+
+> aashni@1.0.0 start
+> next start -p 3001 -H 127.0.0.1
+
+ ⨯ Failed to start server
+Error: listen EADDRINUSE: address already in use 127.0.0.1:3001
+    at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+    at listenInCluster (node:net:1996:12)
+    at node:net:2205:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '127.0.0.1',
+  port: 3001
+}
