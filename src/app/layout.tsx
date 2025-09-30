@@ -4,6 +4,7 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
 import { Toaster } from 'react-hot-toast'
+import { ChatbotProvider } from '@/components/ui/chatbot-provider'
 
 export const metadata: Metadata = {
   title: {
@@ -87,24 +88,26 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
-          <div className="relative flex min-h-screen flex-col">
-            <Header />
-            <main className="flex-1 pt-16 lg:pt-20">
-              {children}
-            </main>
-            <Footer />
-          </div>
-          <Toaster 
-            position="bottom-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#F8F6F0',
-                color: '#0A0A0A',
-                border: '1px solid #D4AF37',
-              },
-            }}
-          />
+          <ChatbotProvider>
+            <div className="relative flex min-h-screen flex-col">
+              <Header />
+              <main className="flex-1 pt-16 lg:pt-20">
+                {children}
+              </main>
+              <Footer />
+            </div>
+            <Toaster 
+              position="bottom-right"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: '#F8F6F0',
+                  color: '#0A0A0A',
+                  border: '1px solid #D4AF37',
+                },
+              }}
+            />
+          </ChatbotProvider>
         </ThemeProvider>
       </body>
     </html>

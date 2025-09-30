@@ -21,7 +21,7 @@ const featuredProducts = [
     images: [
       {
         id: "1",
-        url: "https://picsum.photos/600/600?random=1&blur=1",
+        url: "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=600&fit=crop&crop=center",
         alt: "Eternal Sparkle Diamond Ring",
         isPrimary: true,
         order: 1
@@ -67,7 +67,7 @@ const featuredProducts = [
     images: [
       {
         id: "2",
-        url: "https://picsum.photos/600/600?random=2&blur=1",
+        url: "https://images.unsplash.com/photo-1599643477877-530eb83abc8e?w=600&h=600&fit=crop&crop=center",
         alt: "Royal Heritage Necklace",
         isPrimary: true,
         order: 1
@@ -104,7 +104,7 @@ const featuredProducts = [
     images: [
       {
         id: "3",
-        url: "https://picsum.photos/600/600?random=3&blur=1",
+        url: "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=600&h=600&fit=crop&crop=center",
         alt: "Celestial Pearl Earrings",
         isPrimary: true,
         order: 1
@@ -150,7 +150,7 @@ const featuredProducts = [
     images: [
       {
         id: "4",
-        url: "https://picsum.photos/600/600?random=4&blur=1",
+        url: "https://images.unsplash.com/photo-1611652022419-a9419f74343d?w=600&h=600&fit=crop&crop=center",
         alt: "Infinity Love Bracelet",
         isPrimary: true,
         order: 1
