@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Diamond, Star, Heart, Sparkles, ArrowRight, Filter, Grid, List, ChevronDown, Award, Gem } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { formatPriceNumber } from '@/lib/utils'
 
 const diamondProducts = [
   {
@@ -466,11 +467,11 @@ export default function DiamondPage() {
 
                       <div className="flex items-center gap-2 mb-4">
                         <span className="text-2xl font-bold text-gray-900">
-                          ₹{product.price.toLocaleString()}
+                          ₹{formatPriceNumber(product.price)}
                         </span>
                         {product.originalPrice && (
                           <span className="text-lg text-gray-500 line-through">
-                            ₹{product.originalPrice.toLocaleString()}
+                            ₹{formatPriceNumber(product.originalPrice)}
                           </span>
                         )}
                       </div>

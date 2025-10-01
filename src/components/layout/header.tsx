@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Heart, ShoppingBag, User, Menu, X, Diamond, Crown, Sparkles, Star, Gift, Gem } from 'lucide-react'
+import { Search, Heart, ShoppingBag, User, Menu, X, Diamond, Crown, Sparkles, Star, Gift, Gem, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Logo, LogoMark } from '@/components/ui/logo'
@@ -124,215 +124,126 @@ export function Header() {
         transition={{ duration: 0.6, ease: "easeOut" }}
       >
         {/* Top Bar with Logo and Actions */}
-        <div className="border-b border-gray-100/50">
+        <div className="border-b border-gray-50">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex h-16 lg:h-18 items-center justify-between">
+            <div className="flex h-20 lg:h-24 items-center justify-between">
               {/* Mobile Menu Button */}
               <Button
                 variant="ghost"
                 size="icon"
-                className="lg:hidden hover:bg-champagne-gold/10 transition-colors"
+                className="lg:hidden hover:bg-gray-50 transition-colors"
                 onClick={openMobileMenu}
               >
-                <Menu className="h-6 w-6 text-gray-700" />
+                <Menu className="h-5 w-5 text-gray-700" />
               </Button>
 
               {/* Logo */}
               <Link href="/" className="flex-shrink-0">
                 <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  transition={{ duration: 0.2 }}
+                  whileHover={{ scale: 1.01 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
                 >
-                  <Logo width={180} height={60} className="hidden sm:block" />
-                  <LogoMark size={40} className="block sm:hidden" />
+                  <Logo width={200} height={65} className="hidden sm:block" />
+                  <LogoMark size={42} className="block sm:hidden" />
+                </motion.div>
+              </Link>
+
+              {/* Location Feature - Refined */}
+              <Link href="/showroom" className="hidden lg:flex items-center space-x-3 ml-8">
+                <motion.div
+                  className="flex items-center space-x-3 px-5 py-2.5 border border-gray-200 hover:border-gray-300 rounded-sm transition-all duration-300 group bg-white/80"
+                  whileHover={{ 
+                    y: -1,
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)"
+                  }}
+                >
+                  <MapPin className="h-4 w-4 text-gray-600 group-hover:text-gray-800 transition-colors" />
+                  <div className="text-sm">
+                    <div className="text-gray-800 font-medium tracking-wide">
+                      Chennai
+                    </div>
+                    <div className="text-xs text-gray-500 uppercase tracking-wider">
+                      Showroom
+                    </div>
+                  </div>
                 </motion.div>
               </Link>
 
               {/* Center Search Bar - Desktop */}
-              <div className="hidden lg:flex flex-1 max-w-2xl mx-8">
-                <motion.div 
-                  className="relative w-full"
-                  whileHover={{ scale: 1.02 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <motion.div 
-                    className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"
-                    animate={{ 
-                      x: searchQuery ? [0, 2, 0] : 0,
-                      color: searchQuery ? ["#9CA3AF", "#F43F5F", "#9CA3AF"] : "#9CA3AF"
-                    }}
-                    transition={{ 
-                      x: { duration: 0.5, repeat: searchQuery ? Infinity : 0 },
-                      color: { duration: 1, repeat: searchQuery ? Infinity : 0 }
-                    }}
-                  >
-                    <Search className="h-5 w-5" />
-                  </motion.div>
+              <div className="hidden lg:flex flex-1 max-w-xl mx-12">
+                <div className="relative w-full">
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
                     type="search"
-                    placeholder="Search for Gold Jewellery, Diamond Jewellery and more..."
+                    placeholder="Search collections..."
+                    className="w-full pl-11 pr-4 py-2.5 bg-gray-50/60 border-gray-200 rounded-sm focus:bg-white focus:ring-1 focus:ring-gray-300 focus:border-gray-300 transition-all duration-200 text-sm"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 bg-gray-50/80 border-gray-200/60 rounded-full text-sm placeholder:text-gray-500 focus:bg-white focus:border-rose-400/50 focus:ring-2 focus:ring-rose-400/20 hover:bg-gray-50 hover:border-gray-300/80 transition-all duration-300 focus:shadow-lg"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        handleSearchSubmit(e as any)
-                      }
-                    }}
                   />
                   {searchQuery && (
-                    <motion.button
-                      initial={{ opacity: 0, scale: 0.8, rotate: -90 }}
-                      animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                      exit={{ opacity: 0, scale: 0.8, rotate: 90 }}
-                      whileHover={{ scale: 1.1, rotate: 90 }}
-                      whileTap={{ scale: 0.9 }}
+                    <button
                       onClick={() => setSearchQuery('')}
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
-                      <X className="h-4 w-4 text-gray-400 hover:text-rose-500 transition-colors" />
-                    </motion.button>
+                      <X size={14} />
+                    </button>
                   )}
-                </motion.div>
+                </div>
               </div>
 
               {/* Right Actions */}
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-6">
                 {/* Search Icon - Mobile */}
                 <motion.div
-                  whileHover={{ 
-                    scale: 1.1,
-                    rotate: [0, 15, -15, 0],
-                    transition: { duration: 0.4 }
-                  }}
-                  whileTap={{ scale: 0.9 }}
+                  whileHover={{ y: -1 }}
                 >
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={openSearch}
-                    className="lg:hidden hover:bg-champagne-gold/10 transition-colors group relative"
+                    className="lg:hidden p-2 text-gray-600 hover:text-gray-800 transition-colors"
                   >
-                    <motion.div
-                      className="absolute inset-0 bg-champagne-gold/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                      initial={{ scale: 0.8 }}
-                      whileHover={{ scale: 1.2 }}
-                      transition={{ duration: 0.3 }}
-                    />
-                    <Search className="h-5 w-5 text-gray-700 relative z-10" />
+                    <Search className="h-5 w-5" />
                   </Button>
                 </motion.div>
 
                 {/* Wishlist */}
                 <Link href="/wishlist">
-                  <motion.div
-                    whileHover={{ 
-                      scale: 1.1,
-                      rotate: [0, -5, 5, 0],
-                      transition: { duration: 0.3 }
-                    }}
-                    whileTap={{ scale: 0.9 }}
+                  <motion.button
+                    whileHover={{ y: -1 }}
+                    className="p-2 text-gray-600 hover:text-gray-800 transition-colors relative"
                   >
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="relative hover:bg-champagne-gold/10 transition-all duration-300 group"
-                    >
-                      <motion.div
-                        className="absolute inset-0 bg-rose-100 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                        initial={{ scale: 0.8 }}
-                        whileHover={{ scale: 1.2 }}
-                        transition={{ duration: 0.3 }}
-                      />
-                      <Heart className="h-5 w-5 text-gray-700 group-hover:text-champagne-gold transition-colors relative z-10" />
-                      {mounted && wishlistItems.length > 0 && (
-                        <motion.span
-                          initial={{ scale: 0 }}
-                          animate={{ 
-                            scale: 1,
-                            rotate: [0, 10, -10, 0]
-                          }}
-                          transition={{
-                            scale: { duration: 0.3 },
-                            rotate: { duration: 2, repeat: Infinity }
-                          }}
-                          className="absolute -top-1 -right-1 bg-gradient-to-r from-champagne-gold to-amber-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium shadow-lg"
-                        >
-                          {wishlistItems.length}
-                        </motion.span>
-                      )}
-                    </Button>
-                  </motion.div>
+                    <Heart className="h-5 w-5" />
+                    {mounted && wishlistItems.length > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-gray-800 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center text-[10px]">
+                        {wishlistItems.length}
+                      </span>
+                    )}
+                  </motion.button>
                 </Link>
 
                 {/* Cart */}
-                <motion.div
-                  whileHover={{ 
-                    scale: 1.1,
-                    y: [0, -2, 0],
-                    transition: { duration: 0.3 }
-                  }}
-                  whileTap={{ scale: 0.9 }}
+                <motion.button
+                  whileHover={{ y: -1 }}
+                  onClick={openCart}
+                  className="p-2 text-gray-600 hover:text-gray-800 transition-colors relative"
                 >
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={openCart}
-                    className="relative hover:bg-champagne-gold/10 transition-all duration-300 group"
-                  >
-                    <motion.div
-                      className="absolute inset-0 bg-rose-100 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                      initial={{ scale: 0.8 }}
-                      whileHover={{ scale: 1.2 }}
-                      transition={{ duration: 0.3 }}
-                    />
-                    <ShoppingBag className="h-5 w-5 text-gray-700 group-hover:text-champagne-gold transition-colors relative z-10" />
-                    {mounted && getItemCount() > 0 && (
-                      <motion.span
-                        initial={{ scale: 0 }}
-                        animate={{ 
-                          scale: 1,
-                          y: [0, -1, 0]
-                        }}
-                        transition={{
-                          scale: { duration: 0.3 },
-                          y: { duration: 1.5, repeat: Infinity }
-                        }}
-                        className="absolute -top-1 -right-1 bg-gradient-to-r from-champagne-gold to-amber-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium shadow-lg"
-                      >
-                        {getItemCount()}
-                      </motion.span>
-                    )}
-                  </Button>
-                </motion.div>
+                  <ShoppingBag className="h-5 w-5" />
+                  {mounted && getItemCount() > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-gray-800 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center text-[10px]">
+                      {getItemCount()}
+                    </span>
+                  )}
+                </motion.button>
 
                 {/* User Account */}
                 <Link href="/account">
-                  <motion.div
-                    whileHover={{ 
-                      scale: 1.1,
-                      rotate: [0, 360],
-                      transition: { 
-                        scale: { duration: 0.2 },
-                        rotate: { duration: 0.6 }
-                      }
-                    }}
-                    whileTap={{ scale: 0.9 }}
+                  <motion.button
+                    whileHover={{ y: -1 }}
+                    className="p-2 text-gray-600 hover:text-gray-800 transition-colors"
                   >
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="hover:bg-champagne-gold/10 transition-all duration-300 group relative"
-                    >
-                      <motion.div
-                        className="absolute inset-0 bg-rose-100 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                        initial={{ scale: 0.8 }}
-                        whileHover={{ scale: 1.2 }}
-                        transition={{ duration: 0.3 }}
-                      />
-                      <User className="h-5 w-5 text-gray-700 group-hover:text-champagne-gold transition-colors relative z-10" />
-                    </Button>
-                  </motion.div>
+                    <User className="h-5 w-5" />
+                  </motion.button>
                 </Link>
               </div>
             </div>

@@ -71,13 +71,34 @@ export default function AboutPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-rose-50/30 relative overflow-hidden">
       {/* Floating Background Elements */}
       <div className="absolute inset-0 pointer-events-none">
-        {Array.from({ length: 20 }).map((_, i) => (
+        {[
+          { left: 12.5, top: 8.3, duration: 12, delay: 0 },
+          { left: 87.2, top: 23.7, duration: 15, delay: 1 },
+          { left: 34.8, top: 91.2, duration: 18, delay: 2 },
+          { left: 68.9, top: 15.6, duration: 14, delay: 3 },
+          { left: 5.4, top: 67.8, duration: 16, delay: 4 },
+          { left: 92.1, top: 45.3, duration: 13, delay: 5 },
+          { left: 23.7, top: 78.9, duration: 17, delay: 6 },
+          { left: 76.3, top: 32.1, duration: 19, delay: 7 },
+          { left: 45.8, top: 12.4, duration: 15, delay: 8 },
+          { left: 18.2, top: 56.7, duration: 14, delay: 9 },
+          { left: 89.6, top: 89.3, duration: 16, delay: 1.5 },
+          { left: 56.4, top: 73.8, duration: 18, delay: 2.5 },
+          { left: 8.7, top: 34.5, duration: 13, delay: 3.5 },
+          { left: 73.9, top: 67.2, duration: 17, delay: 4.5 },
+          { left: 41.2, top: 5.8, duration: 20, delay: 5.5 },
+          { left: 95.3, top: 78.4, duration: 12, delay: 6.5 },
+          { left: 27.6, top: 43.9, duration: 15, delay: 7.5 },
+          { left: 62.8, top: 87.1, duration: 14, delay: 8.5 },
+          { left: 14.9, top: 21.6, duration: 19, delay: 9.5 },
+          { left: 81.5, top: 54.7, duration: 16, delay: 0.5 }
+        ].map((element, i) => (
           <motion.div
             key={i}
             className="absolute"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: `${element.left}%`,
+              top: `${element.top}%`,
             }}
             animate={{
               y: [0, -30, 0],
@@ -87,9 +108,9 @@ export default function AboutPage() {
               opacity: [0.1, 0.4, 0.1]
             }}
             transition={{
-              duration: 12 + Math.random() * 8,
+              duration: element.duration,
               repeat: Infinity,
-              delay: Math.random() * 10,
+              delay: element.delay,
               ease: "easeInOut"
             }}
           >

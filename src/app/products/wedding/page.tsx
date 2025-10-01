@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { formatPriceNumber } from '@/lib/utils'
 
 interface Product {
   id: string
@@ -699,11 +700,11 @@ export default function WeddingJewelryPage() {
 
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-2xl font-bold text-gray-800">
-                      ₹{product.price.toLocaleString()}
+                      ₹{formatPriceNumber(product.price)}
                     </span>
                     {product.originalPrice && (
                       <span className="text-lg text-gray-500 line-through">
-                        ₹{product.originalPrice.toLocaleString()}
+                        ₹{formatPriceNumber(product.originalPrice)}
                       </span>
                     )}
                   </div>

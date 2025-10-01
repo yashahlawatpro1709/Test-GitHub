@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Grid, List, Filter, Star, Heart, ShoppingBag, Eye, Gift, Sparkles, Calendar, Users, Crown, Diamond, Gem, Award, Zap, ArrowRight, ChevronDown } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { formatPriceNumber } from '@/lib/utils'
 
 interface GiftProduct {
   id: string
@@ -622,15 +623,15 @@ export default function GiftingPage() {
                     {/* Premium Price */}
                     <div className="flex items-center gap-3 mb-6">
                       <span className="text-2xl font-bold text-gray-800">
-                        ₹{product.price.toLocaleString()}
+                        ₹{formatPriceNumber(product.price)}
                       </span>
                       {product.originalPrice && (
                         <>
                           <span className="text-lg text-gray-500 line-through">
-                            ₹{product.originalPrice.toLocaleString()}
+                            ₹{formatPriceNumber(product.originalPrice)}
                           </span>
                           <span className="px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-sm font-bold rounded-full shadow-md">
-                            Save ₹{(product.originalPrice - product.price).toLocaleString()}
+                            Save ₹{formatPriceNumber(product.originalPrice - product.price)}
                           </span>
                         </>
                       )}

@@ -228,63 +228,126 @@ export function FeaturedCollections() {
           ))}
         </div>
 
-        {/* Bottom CTA Section */}
+        {/* Premium CTA Section */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.6 }}
           viewport={{ once: true }}
-          className="text-center mt-20"
+          className="text-center mt-24"
         >
-          <div className="bg-gradient-to-r from-slate-50 to-rose-50 rounded-3xl p-12 border border-rose-100/50 shadow-xl">
-            <motion.h3
-              className="text-2xl lg:text-3xl font-playfair font-bold text-slate-900 mb-4"
-              whileHover={{ scale: 1.02 }}
-            >
-              Can't find what you're looking for?
-            </motion.h3>
-            
-            <motion.p
-              className="text-slate-600 mb-8 max-w-2xl mx-auto"
-              initial={{ opacity: 0.8 }}
-              whileHover={{ opacity: 1 }}
-            >
-              Explore our complete collection of handcrafted jewelry, or let our experts help you create something truly unique.
-            </motion.p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Link href="/collections">
+          <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-black rounded-none p-16 lg:p-20 border-t border-b border-slate-700/30 shadow-2xl overflow-hidden">
+            {/* Luxury Background Pattern */}
+            <div className="absolute inset-0 opacity-5">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.1),transparent_50%)]" />
+              <div className="absolute top-0 left-0 w-full h-full bg-[linear-gradient(45deg,transparent_49%,rgba(255,255,255,0.03)_50%,transparent_51%)] bg-[length:20px_20px]" />
+            </div>
+
+            {/* Floating Luxury Elements */}
+            <div className="absolute inset-0 pointer-events-none">
+              {Array.from({ length: 6 }).map((_, i) => (
                 <motion.div
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  key={i}
+                  className="absolute"
+                  style={{
+                    left: `${15 + i * 15}%`,
+                    top: `${20 + (i % 2) * 60}%`,
+                  }}
+                  animate={{
+                    y: [0, -15, 0],
+                    opacity: [0.1, 0.3, 0.1],
+                    scale: [0.8, 1.1, 0.8]
+                  }}
+                  transition={{
+                    duration: 8 + i * 2,
+                    repeat: Infinity,
+                    delay: i * 1.5,
+                    ease: "easeInOut"
+                  }}
                 >
-                  <Button 
-                    size="lg" 
-                    className="bg-gradient-to-r from-rose-600 via-pink-600 to-purple-600 hover:from-rose-700 hover:via-pink-700 hover:to-purple-700 text-white font-semibold px-8 py-4 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300"
-                  >
-                    View All Collections
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
+                  <Diamond className="w-3 h-3 text-white/20" />
                 </motion.div>
-              </Link>
+              ))}
+            </div>
+
+            {/* Content */}
+            <div className="relative z-10">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                viewport={{ once: true }}
+                className="inline-flex items-center gap-3 mb-8 px-6 py-2 bg-gradient-to-r from-white/10 to-white/5 rounded-full border border-white/20 backdrop-blur-sm"
+              >
+                <Crown className="w-4 h-4 text-yellow-400" />
+                <span className="text-xs font-medium text-white/90 tracking-[0.2em] uppercase">
+                  Maison Aashni
+                </span>
+              </motion.div>
+
+              <motion.h3
+                className="text-3xl lg:text-4xl xl:text-5xl font-playfair font-light text-white mb-6 leading-tight tracking-wide"
+                whileHover={{ scale: 1.01 }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.3 }}
+                viewport={{ once: true }}
+              >
+                Can't find what you're looking for?
+              </motion.h3>
               
-              <Link href="/custom">
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                >
-                  <Button 
-                    variant="outline" 
-                    size="lg"
-                    className="border-2 border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white font-semibold px-8 py-4 rounded-full transition-all duration-300"
+              <motion.p
+                className="text-white/80 mb-12 max-w-3xl mx-auto text-lg lg:text-xl leading-relaxed font-light tracking-wide"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+                viewport={{ once: true }}
+              >
+                Explore our complete collection of handcrafted jewelry, or let our experts help you create something truly unique.
+              </motion.p>
+              
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.5 }}
+                viewport={{ once: true }}
+                className="flex justify-center"
+              >
+                <Link href="/collections">
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -3 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                    className="group"
                   >
-                    Custom Design
-                    <Crown className="ml-2 h-5 w-5" />
-                  </Button>
-                </motion.div>
-              </Link>
+                    <Button 
+                      size="lg" 
+                      className="bg-white text-slate-900 hover:bg-white/95 font-medium px-12 py-6 text-lg tracking-wide border-0 shadow-xl hover:shadow-2xl transition-all duration-500 group-hover:shadow-white/20"
+                      style={{ borderRadius: '0px' }}
+                    >
+                      <span className="relative">
+                        View All Collections
+                        <motion.div
+                          className="absolute bottom-0 left-0 h-[1px] bg-slate-900 origin-left"
+                          initial={{ scaleX: 0 }}
+                          whileHover={{ scaleX: 1 }}
+                          transition={{ duration: 0.3 }}
+                        />
+                      </span>
+                      <ArrowRight className="ml-3 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                    </Button>
+                  </motion.div>
+                </Link>
+              </motion.div>
+
+              {/* Luxury Accent Line */}
+              <motion.div
+                initial={{ scaleX: 0 }}
+                whileInView={{ scaleX: 1 }}
+                transition={{ duration: 1.2, delay: 0.8 }}
+                viewport={{ once: true }}
+                className="mt-12 mx-auto w-24 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent"
+              />
             </div>
           </div>
         </motion.div>
