@@ -4,10 +4,6 @@ import Groq from 'groq-sdk';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
-
 export async function POST(request: NextRequest) {
   try {
     const { messages } = await request.json();
@@ -19,6 +15,20 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Check if GROQ API key is configured
+    if (!process.env.GROQ_API_KEY) {
+      console.error('GROQ_API_KEY is not configured');
+      return NextResponse.json(
+        { error: 'Chat service is not configured. Please contact support.' },
+        { status: 503 }
+      );
+    }
+
+    // Initialize Groq client only when API key is available
+    const groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY,
+    });
 
     // System message to give the AI context about AASHNI
     const systemMessage = {
