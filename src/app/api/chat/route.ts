@@ -4,12 +4,12 @@ import Groq from 'groq-sdk';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
-
 export async function POST(request: NextRequest) {
   try {
+    // Initialize Groq client inside the handler to avoid build-time errors
+    const groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY || '',
+    });
     const { messages } = await request.json();
     console.log('Received messages:', messages);
 

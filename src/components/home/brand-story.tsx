@@ -12,7 +12,6 @@ const defaultImage = "https://images.unsplash.com/photo-1515562141207-7a88fb7ce3
 export function BrandStory() {
   const [brandImage, setBrandImage] = useState(defaultImage)
 
-  // Fetch uploaded brand story image from database
   useEffect(() => {
     async function fetchBrandImage() {
       try {
@@ -34,7 +33,7 @@ export function BrandStory() {
           }
         }
       } catch (error) {
-        console.error('Failed to fetch brand story image:', error)
+        console.error('Failed to fetch brand story image', error)
       }
     }
 
