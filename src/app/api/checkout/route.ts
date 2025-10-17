@@ -3,6 +3,14 @@ import { stripe } from '@/lib/stripe'
 
 export async function POST(req: NextRequest) {
   try {
+    // Check if Stripe is configured
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return NextResponse.json(
+        { error: 'Payment system is not configured. Please contact support.' },
+        { status: 503 }
+      )
+    }
+
     const { items, customerEmail, customerName } = await req.json()
 
     if (!items || items.length === 0) {
