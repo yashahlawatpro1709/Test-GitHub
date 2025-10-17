@@ -5,10 +5,22 @@ import { hashPassword } from '@/lib/auth'
 // This route is for initial admin setup only
 export async function POST(request: NextRequest) {
   try {
+    // Check if database is connected
+    if (!process.env.DATABASE_URL) {
+      console.error('[Admin Setup] DATABASE_URL is not configured')
+      return NextResponse.json(
+        { error: 'Database is not configured. Please contact support.' },
+        { status: 503 }
+      )
+    }
+
+    console.log('[Admin Setup] Checking for existing admin')
+
     // Check if any admin exists
     const existingAdmin = await prisma.admin.findFirst()
 
     if (existingAdmin) {
+      console.log('[Admin Setup] Admin already exists')
       return NextResponse.json(
         { error: 'Admin already exists. Use login instead.' },
         { status: 400 }
@@ -23,6 +35,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    console.log('[Admin Setup] Creating new admin:', username)
 
     // Hash password
     const hashedPassword = await hashPassword(password)
@@ -43,15 +57,22 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    console.log('[Admin Setup] Admin created successfully:', admin.username)
+
     return NextResponse.json({
       success: true,
       message: 'Admin created successfully',
       admin,
     })
-  } catch (error) {
-    console.error('Setup error:', error)
+  } catch (error: any) {
+    console.error('[Admin Setup] Error:', error)
+    console.error('[Admin Setup] Error message:', error?.message)
+    console.error('[Admin Setup] Error stack:', error?.stack)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? error?.message : undefined
+      },
       { status: 500 }
     )
   }
