@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import Image from 'next/image'
 
-const heroSlides = [
+const defaultHeroSlides = [
   {
     id: 1,
     title: "Exquisite Bridal Heritage",
@@ -62,9 +62,49 @@ const heroSlides = [
 ]
 
 export function HeroSection() {
+  const [heroSlides, setHeroSlides] = useState(defaultHeroSlides)
   const [currentSlide, setCurrentSlide] = useState(0)
   const [isAutoPlaying, setIsAutoPlaying] = useState(true)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Fetch uploaded images from database
+  useEffect(() => {
+    async function fetchHeroImages() {
+      try {
+        const response = await fetch('/api/site-images?section=hero')
+        const data = await response.json()
+        
+        if (data.images && data.images.length > 0) {
+          // Merge uploaded images with default slides
+          const updatedSlides = defaultHeroSlides.map((slide, index) => {
+            const uploadedImage = data.images.find((img: any) => img.imageKey === `slide-${index + 1}`)
+            if (uploadedImage) {
+              return {
+                ...slide,
+                mainImage: uploadedImage.url,
+                title: uploadedImage.title || slide.title,
+                description: uploadedImage.description || slide.description,
+                collection: uploadedImage.metadata?.collection || slide.collection,
+                tagline: uploadedImage.metadata?.tagline || slide.tagline,
+                exclusiveOffer: uploadedImage.metadata?.exclusiveOffer || slide.exclusiveOffer,
+                discount: uploadedImage.metadata?.discount || slide.discount,
+                additionalOffer: uploadedImage.metadata?.additionalOffer || slide.additionalOffer,
+                ctaText: uploadedImage.metadata?.ctaText || slide.ctaText,
+                ctaLink: uploadedImage.metadata?.ctaLink || slide.ctaLink,
+              }
+            }
+            return slide
+          })
+          setHeroSlides(updatedSlides)
+        }
+      } catch (error) {
+        console.error('Failed to fetch hero images:', error)
+        // Keep using default slides on error
+      }
+    }
+
+    fetchHeroImages()
+  }, [])
 
   // Auto-scroll functionality
   useEffect(() => {

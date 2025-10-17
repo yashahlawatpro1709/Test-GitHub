@@ -79,7 +79,7 @@ export function Header() {
   const [mounted, setMounted] = useState(false)
   
   const { items: cartItems, isOpen: isCartOpen, openCart, getItemCount } = useCartStore()
-  const { items: wishlistItems } = useWishlistStore()
+  const { items: wishlistItems, openWishlist } = useWishlistStore()
   const { 
     searchQuery, 
     isSearchOpen, 
@@ -224,6 +224,7 @@ export function Header() {
                 </motion.div>
 
                 {/* Wishlist */}
+<<<<<<< Updated upstream
                 <Link href="/wishlist">
                   <motion.div
                     whileHover={{ 
@@ -264,6 +265,20 @@ export function Header() {
                     </Button>
                   </motion.div>
                 </Link>
+=======
+                <motion.button
+                  onClick={openWishlist}
+                  whileHover={{ y: -1 }}
+                  className="p-2 text-gray-600 hover:text-gray-800 transition-colors relative"
+                >
+                  <Heart className="h-5 w-5" />
+                  {mounted && wishlistItems.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-gray-800 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center text-[10px]">
+                      {wishlistItems.length}
+                    </span>
+                  )}
+                </motion.button>
+>>>>>>> Stashed changes
 
                 {/* Cart */}
                 <motion.div
