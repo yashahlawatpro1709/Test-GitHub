@@ -224,48 +224,6 @@ export function Header() {
                 </motion.div>
 
                 {/* Wishlist */}
-<<<<<<< Updated upstream
-                <Link href="/wishlist">
-                  <motion.div
-                    whileHover={{ 
-                      scale: 1.1,
-                      rotate: [0, -5, 5, 0],
-                      transition: { duration: 0.3 }
-                    }}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="relative hover:bg-champagne-gold/10 transition-all duration-300 group"
-                    >
-                      <motion.div
-                        className="absolute inset-0 bg-rose-100 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                        initial={{ scale: 0.8 }}
-                        whileHover={{ scale: 1.2 }}
-                        transition={{ duration: 0.3 }}
-                      />
-                      <Heart className="h-5 w-5 text-gray-700 group-hover:text-champagne-gold transition-colors relative z-10" />
-                      {mounted && wishlistItems.length > 0 && (
-                        <motion.span
-                          initial={{ scale: 0 }}
-                          animate={{ 
-                            scale: 1,
-                            rotate: [0, 10, -10, 0]
-                          }}
-                          transition={{
-                            scale: { duration: 0.3 },
-                            rotate: { duration: 2, repeat: Infinity }
-                          }}
-                          className="absolute -top-1 -right-1 bg-gradient-to-r from-champagne-gold to-amber-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium shadow-lg"
-                        >
-                          {wishlistItems.length}
-                        </motion.span>
-                      )}
-                    </Button>
-                  </motion.div>
-                </Link>
-=======
                 <motion.button
                   onClick={openWishlist}
                   whileHover={{ y: -1 }}
@@ -278,7 +236,6 @@ export function Header() {
                     </span>
                   )}
                 </motion.button>
->>>>>>> Stashed changes
 
                 {/* Cart */}
                 <motion.div
