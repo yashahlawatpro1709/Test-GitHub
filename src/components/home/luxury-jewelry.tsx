@@ -16,7 +16,7 @@ interface JewelryItem {
   title?: string
   description?: string
   metadata?: {
-    category?: string // 'high-jewelry' or 'fine-jewelry'
+    category?: string
     purity?: string
     diamondCarat?: string
     metal?: string
@@ -31,7 +31,7 @@ interface JewelryItem {
 const CATEGORIES = [
   { id: 'all', name: 'All Collections', icon: Gem },
   { id: 'high-jewelry', name: 'High Jewelry', icon: Crown },
-  { id: 'fine-jewelry', name: 'Fine Jewelry', icon: Diamond },
+  { id: 'fine-jewelry', name: 'Fine Jewelry', icon: Diamond }
 ]
 
 const SORT_OPTIONS = [
