@@ -1,17 +1,12 @@
 'use client'
 
-<<<<<<< Updated upstream
 import React, { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Crown, Star, Heart, Sparkles, ArrowRight, Filter, Grid, List, ChevronDown } from 'lucide-react'
+import { Crown, Star, Heart, Sparkles, ArrowRight, Filter, Grid, List, ChevronDown, Award, Gem, Circle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-=======
-import { motion } from 'framer-motion'
-import { Crown, Sparkles, Award, Gem, Circle } from 'lucide-react'
 import { LuxuryJewelry } from '@/components/home/luxury-jewelry'
->>>>>>> Stashed changes
 
 // Gold-specific categories
 const GOLD_CATEGORIES = [
@@ -91,73 +86,7 @@ export default function GoldPage() {
               Discover our exquisite collection of handcrafted gold jewelry, where timeless tradition meets contemporary elegance. Each piece is a testament to exceptional artistry.
             </motion.p>
 
-<<<<<<< Updated upstream
-                  {/* Product Image */}
-                  <div className={viewMode === 'grid' ? "relative h-80 overflow-hidden" : "relative w-64 h-64 flex-shrink-0 overflow-hidden"}>
-                    <Image
-                      src={product.image}
-                      alt={product.name}
-                      fill
-                      className="object-cover group-hover:scale-110 transition-transform duration-700"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  </div>
-
-                  {/* Product Info */}
-                  <div className={viewMode === 'grid' ? "p-6" : "flex-1 p-6 flex flex-col justify-between"}>
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-medium text-amber-600 uppercase tracking-wider">
-                          {product.category}
-                        </span>
-                        <span className="text-xs font-medium text-gray-500">
-                          {product.purity} • {product.weight}
-                        </span>
-                      </div>
-
-                      <h3 className="text-xl font-playfair font-bold text-gray-900 mb-3 group-hover:text-amber-700 transition-colors">
-                        {product.name}
-                      </h3>
-
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="text-2xl font-bold text-gray-900">
-                          ₹{product.price.toLocaleString()}
-                        </span>
-                        {product.originalPrice && (
-                          <span className="text-lg text-gray-500 line-through">
-                            ₹{product.originalPrice.toLocaleString()}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex gap-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 border-amber-200 text-amber-700 hover:bg-amber-50"
-                      >
-                        <Heart className="h-4 w-4 mr-2" />
-                        Wishlist
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="flex-1 bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 text-white"
-                      >
-                        View Details
-                        <ArrowRight className="h-4 w-4 ml-2" />
-                      </Button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
-          </AnimatePresence>
-
-          {filteredProducts.length === 0 && (
-=======
             {/* Premium Features */}
->>>>>>> Stashed changes
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}

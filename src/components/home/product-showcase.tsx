@@ -281,19 +281,6 @@ export function ProductShowcase() {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-<<<<<<< Updated upstream
-          <div className="inline-flex items-center gap-2 bg-champagne-gold/10 px-4 py-2 rounded-full mb-6">
-            <Sparkles className="h-4 w-4 text-champagne-gold" />
-            <span className="text-champagne-gold font-medium text-sm">Handpicked for You</span>
-          </div>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-playfair font-bold text-deep-black mb-6">
-            Featured Masterpieces
-          </h2>
-          <p className="text-lg text-warm-gray max-w-2xl mx-auto leading-relaxed">
-            Discover our most loved pieces, each carefully crafted to perfection. 
-            These exceptional designs have captured hearts and created unforgettable moments.
-          </p>
-=======
           {/* Royal Crown Icon */}
           <motion.div
             initial={{ scale: 0, rotate: -180 }}
@@ -372,7 +359,6 @@ export function ProductShowcase() {
             Each design represents the perfect blend of contemporary elegance and timeless craftsmanship, 
             bringing you the finest in luxury jewelry.
           </motion.p>
->>>>>>> Stashed changes
         </motion.div>
 
         {/* Products Grid */}
