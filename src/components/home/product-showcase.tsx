@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -10,8 +10,21 @@ import { useCartStore, useWishlistStore } from '@/store'
 import { formatPrice } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
-// Mock product data
-const featuredProducts = [
+interface ProductImage {
+  id: string
+  url: string
+  title?: string
+  metadata?: {
+    jewelryDetail?: string
+    originalPrice?: string
+    discountedPrice?: string
+    tags?: string
+  }
+  imageKey: string
+}
+
+// Mock product data (fallback)
+const defaultFeaturedProducts = [
   {
     id: "1",
     name: "Eternal Sparkle Diamond Ring",
@@ -184,13 +197,70 @@ const featuredProducts = [
 export function ProductShowcase() {
   const { addItem: addToCart } = useCartStore()
   const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlistStore()
+  const [featuredProducts, setFeaturedProducts] = useState(defaultFeaturedProducts)
 
-  const handleAddToCart = (product: typeof featuredProducts[0]) => {
+  // Fetch uploaded products from database
+  useEffect(() => {
+    async function fetchProducts() {
+      try {
+        const timestamp = new Date().getTime()
+        const response = await fetch(`/api/site-images?section=new-arrivals&t=${timestamp}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        })
+        const data = await response.json()
+        
+        if (data.images && data.images.length > 0) {
+          // Transform uploaded images to product format
+          const uploadedProducts = data.images.map((img: ProductImage, index: number) => {
+            const defaultProduct = defaultFeaturedProducts[index % defaultFeaturedProducts.length]
+            const tags = img.metadata?.tags ? img.metadata.tags.split(',').map((t: string) => t.trim()) : []
+            
+            return {
+              ...defaultProduct,
+              id: img.id,
+              name: img.title || defaultProduct.name,
+              description: img.metadata?.jewelryDetail || defaultProduct.description,
+              price: img.metadata?.discountedPrice ? parseFloat(img.metadata.discountedPrice.replace(/[^0-9.]/g, '')) : defaultProduct.price,
+              originalPrice: img.metadata?.originalPrice ? parseFloat(img.metadata.originalPrice.replace(/[^0-9.]/g, '')) : defaultProduct.originalPrice,
+              images: [{
+                id: img.id,
+                url: img.url,
+                alt: img.title || 'Product',
+                isPrimary: true,
+                order: 1
+              }],
+              slug: img.imageKey,
+              tags: tags.length > 0 ? tags : defaultProduct.tags,
+              specifications: {
+                ...defaultProduct.specifications,
+                material: img.metadata?.jewelryDetail?.split('•')[0]?.trim() || defaultProduct.specifications.material,
+                weight: img.metadata?.jewelryDetail?.split('•')[1] ? parseFloat(img.metadata.jewelryDetail.split('•')[1].replace(/[^0-9.]/g, '')) : defaultProduct.specifications.weight,
+                occasion: tags.length > 0 ? tags : defaultProduct.specifications.occasion
+              }
+            }
+          })
+          
+          setFeaturedProducts(uploadedProducts)
+          console.log('Loaded products from database:', uploadedProducts)
+        }
+      } catch (error) {
+        console.error('Failed to fetch products:', error)
+      }
+    }
+
+    fetchProducts()
+  }, [])
+
+  const handleAddToCart = (product: typeof defaultFeaturedProducts[0]) => {
     addToCart(product)
     toast.success('Added to cart!')
   }
 
-  const handleToggleWishlist = (product: typeof featuredProducts[0]) => {
+  const handleToggleWishlist = (product: typeof defaultFeaturedProducts[0]) => {
     if (isInWishlist(product.id)) {
       removeFromWishlist(product.id)
       toast.success('Removed from wishlist')
@@ -211,6 +281,7 @@ export function ProductShowcase() {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
+<<<<<<< Updated upstream
           <div className="inline-flex items-center gap-2 bg-champagne-gold/10 px-4 py-2 rounded-full mb-6">
             <Sparkles className="h-4 w-4 text-champagne-gold" />
             <span className="text-champagne-gold font-medium text-sm">Handpicked for You</span>
@@ -222,6 +293,86 @@ export function ProductShowcase() {
             Discover our most loved pieces, each carefully crafted to perfection. 
             These exceptional designs have captured hearts and created unforgettable moments.
           </p>
+=======
+          {/* Royal Crown Icon */}
+          <motion.div
+            initial={{ scale: 0, rotate: -180 }}
+            whileInView={{ scale: 1, rotate: 0 }}
+            transition={{ duration: 1.2, delay: 0.3, ease: "easeOut" }}
+            viewport={{ once: true }}
+            className="flex justify-center mb-8"
+          >
+            <div className="relative">
+              <div className="w-16 h-16 bg-gradient-to-br from-champagne-gold via-yellow-400 to-champagne-gold rounded-full flex items-center justify-center shadow-2xl border-2 border-champagne-gold/30">
+                <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M5 16L3 6h5.5l1.5 3 1.5-3H17l-2 10H5zm2.7-2h8.6l.9-4.4h-2.7L12 12l-2.5-2.4H6.8L7.7 14z"/>
+                </svg>
+              </div>
+              <div className="absolute -inset-2 bg-gradient-to-r from-champagne-gold/20 via-transparent to-champagne-gold/20 rounded-full blur-xl"></div>
+            </div>
+          </motion.div>
+
+          {/* Premium Badge */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            viewport={{ once: true }}
+            className="inline-flex items-center gap-3 bg-gradient-to-r from-emerald-500/10 via-emerald-400/5 to-emerald-500/10 px-8 py-3 rounded-full mb-8 border border-emerald-500/30 backdrop-blur-sm shadow-lg shadow-emerald-500/10"
+          >
+            <motion.div 
+              className="w-2 h-2 bg-emerald-500 rounded-full"
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            ></motion.div>
+            <span className="text-emerald-600 font-bold text-sm tracking-wider uppercase flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              Just Arrived • Fresh Collection
+            </span>
+            <motion.div 
+              className="w-2 h-2 bg-emerald-500 rounded-full"
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 2, repeat: Infinity, delay: 1 }}
+            ></motion.div>
+          </motion.div>
+
+          {/* Majestic Title */}
+          <motion.h2
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.4 }}
+            viewport={{ once: true }}
+            className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-playfair font-bold text-transparent bg-gradient-to-r from-deep-black via-gray-800 to-deep-black bg-clip-text mb-8 leading-tight"
+          >
+            New Arrivals
+          </motion.h2>
+
+          {/* Royal Divider */}
+          <motion.div
+            initial={{ scaleX: 0 }}
+            whileInView={{ scaleX: 1 }}
+            transition={{ duration: 1.2, delay: 0.6 }}
+            viewport={{ once: true }}
+            className="flex items-center justify-center mb-8"
+          >
+            <div className="h-px bg-gradient-to-r from-transparent via-champagne-gold to-transparent w-32"></div>
+            <div className="mx-4 w-3 h-3 bg-champagne-gold rounded-full"></div>
+            <div className="h-px bg-gradient-to-r from-transparent via-champagne-gold to-transparent w-32"></div>
+          </motion.div>
+
+          {/* Elegant Description */}
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.8 }}
+            viewport={{ once: true }}
+            className="text-xl text-warm-gray max-w-3xl mx-auto leading-relaxed font-light"
+          >
+            Discover our latest collection of exquisite jewelry pieces, freshly curated for you. 
+            Each design represents the perfect blend of contemporary elegance and timeless craftsmanship, 
+            bringing you the finest in luxury jewelry.
+          </motion.p>
+>>>>>>> Stashed changes
         </motion.div>
 
         {/* Products Grid */}
@@ -244,6 +395,7 @@ export function ProductShowcase() {
                     fill
                     className="object-cover transition-transform duration-700 group-hover:scale-110"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                    unoptimized={product.images[0].url.startsWith('/uploads')}
                   />
                   
                   {/* Badges */}

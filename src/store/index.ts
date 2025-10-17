@@ -110,16 +110,20 @@ export const useCartStore = create<CartStore>()(
 
 interface WishlistStore {
   items: WishlistItem[]
+  isOpen: boolean
   addItem: (product: Product) => void
   removeItem: (productId: string) => void
   isInWishlist: (productId: string) => boolean
   clearWishlist: () => void
+  openWishlist: () => void
+  closeWishlist: () => void
 }
 
 export const useWishlistStore = create<WishlistStore>()(
   persist(
     (set, get) => ({
       items: [],
+      isOpen: false,
 
       addItem: (product: Product) => {
         const isAlreadyInWishlist = get().items.some(
@@ -158,6 +162,14 @@ export const useWishlistStore = create<WishlistStore>()(
 
       clearWishlist: () => {
         set({ items: [] })
+      },
+
+      openWishlist: () => {
+        set({ isOpen: true })
+      },
+
+      closeWishlist: () => {
+        set({ isOpen: false })
       },
     }),
     {

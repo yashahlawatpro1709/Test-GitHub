@@ -1,28 +1,34 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Grid, List, Filter, Star, Heart, ShoppingBag, Eye, Sparkles, Crown, Gem } from 'lucide-react'
+import { Grid, List, Filter, Star, Heart, ShoppingBag, Eye, Sparkles, Crown, Gem, ArrowRight, ChevronDown } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { useCartStore, useWishlistStore } from '@/store'
+import { formatPriceNumber } from '@/lib/utils'
 
-interface Product {
-  id: string
-  name: string
-  price: number
-  originalPrice?: number
-  image: string
-  type: string
-  material: string
-  rating: number
-  reviews: number
-  isNew?: boolean
-  isBestseller?: boolean
-  gemstone?: string
-  style: string
+// Fetch earrings from database
+const fetchEarringsProducts = async () => {
+  try {
+    const timestamp = new Date().getTime()
+    const response = await fetch(`/api/site-images?section=earrings&t=${timestamp}`, {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      }
+    })
+    const data = await response.json()
+    return data.images || []
+  } catch (error) {
+    console.error('Failed to fetch earrings products:', error)
+    return []
+  }
 }
 
-const earringsProducts: Product[] = [
+const earringsProductsDummy = [
   {
     id: 'ear1',
     name: 'Diamond Stud Earrings',
@@ -120,33 +126,89 @@ export default function EarringsPage() {
   const [selectedStyle, setSelectedStyle] = useState('all')
   const [selectedPriceRange, setSelectedPriceRange] = useState(0)
   const [showFilters, setShowFilters] = useState(false)
-  const [filteredProducts, setFilteredProducts] = useState(earringsProducts)
-  const [favorites, setFavorites] = useState<string[]>([])
+  const [earringsProducts, setEarringsProducts] = useState<any[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedProduct, setSelectedProduct] = useState<any>(null)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  
+  // Cart and Wishlist stores
+  const { addItem: addToCart } = useCartStore()
+  const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlistStore()
+
+  const handleAddToCart = (product: any) => {
+    const productData = {
+      id: product.id,
+      name: product.title || product.name,
+      price: parseFloat((product.metadata?.price || product.price).toString().replace(/[^0-9.]/g, '')),
+      images: [product.url || product.image],
+      slug: product.id,
+    } as any
+    addToCart(productData)
+  }
+
+  const handleToggleWishlist = (product: any) => {
+    if (isInWishlist(product.id)) {
+      removeFromWishlist(product.id)
+    } else {
+      const wishlistData = {
+        id: product.id,
+        productId: product.id,
+        product: {
+          name: product.title || product.name,
+          images: [product.url || product.image],
+          slug: product.id,
+        },
+        price: parseFloat((product.metadata?.price || product.price).toString().replace(/[^0-9.]/g, '')),
+        addedAt: new Date()
+      } as any
+      addToWishlist(wishlistData)
+    }
+  }
+
+  // Fetch products on mount
+  useEffect(() => {
+    async function loadProducts() {
+      const products = await fetchEarringsProducts()
+      console.log('Fetched earrings products:', products)
+      setEarringsProducts(products)
+      setFilteredProducts(products)
+      setLoading(false)
+    }
+    loadProducts()
+  }, [])
 
   useEffect(() => {
-    let filtered = earringsProducts.filter(product => {
-      const typeMatch = selectedType === 'all' || product.type === selectedType
-      const materialMatch = selectedMaterial === 'all' || product.material === selectedMaterial
+    let filtered = earringsProducts.filter((product: any) => {
+      // For database products, use metadata.category for filtering
+      const category = product.metadata?.category || product.type || ''
+      const typeMatch = selectedType === 'all' || category.toLowerCase().includes(selectedType.toLowerCase())
+      
+      const materialMatch = selectedMaterial === 'all' || 
+                           (product.material && product.material === selectedMaterial) ||
+                           (product.metadata?.purity && product.metadata.purity.toLowerCase().includes(selectedMaterial.toLowerCase()))
+      
       const gemstoneMatch = selectedGemstone === 'all' || 
                            (selectedGemstone === 'none' && !product.gemstone) ||
-                           product.gemstone === selectedGemstone
-      const styleMatch = selectedStyle === 'all' || product.style === selectedStyle
-      const priceMatch = product.price >= priceRanges[selectedPriceRange].min && 
-                        product.price <= priceRanges[selectedPriceRange].max
+                           (product.gemstone && product.gemstone === selectedGemstone) ||
+                           (category && category.toLowerCase().includes(selectedGemstone.toLowerCase()))
+      
+      const styleMatch = selectedStyle === 'all' || 
+                        (product.style && product.style === selectedStyle)
+      
+      // Get price from metadata or product
+      const productPrice = product.metadata?.price 
+        ? parseFloat(product.metadata.price.replace(/[^0-9.]/g, '')) 
+        : (product.price || 0)
+      
+      const priceMatch = productPrice >= priceRanges[selectedPriceRange].min && 
+                        productPrice <= priceRanges[selectedPriceRange].max
       
       return typeMatch && materialMatch && gemstoneMatch && styleMatch && priceMatch
     })
     
     setFilteredProducts(filtered)
-  }, [selectedType, selectedMaterial, selectedGemstone, selectedStyle, selectedPriceRange])
-
-  const toggleFavorite = (productId: string) => {
-    setFavorites(prev => 
-      prev.includes(productId) 
-        ? prev.filter(id => id !== productId)
-        : [...prev, productId]
-    )
-  }
+  }, [selectedType, selectedMaterial, selectedGemstone, selectedStyle, selectedPriceRange, earringsProducts])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
@@ -221,7 +283,7 @@ export default function EarringsPage() {
 
             {/* Results Count */}
             <div className="text-gray-600">
-              Showing {filteredProducts.length} of {earringsProducts.length} products
+              {loading ? 'Loading...' : `Showing ${filteredProducts.length} of ${earringsProducts.length} products`}
             </div>
           </div>
 
@@ -324,16 +386,36 @@ export default function EarringsPage() {
       {/* Products Grid */}
       <section className="px-4 py-12">
         <div className="max-w-7xl mx-auto">
-          <motion.div
-            className={`grid gap-8 ${
-              viewMode === 'grid' 
-                ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
-                : 'grid-cols-1'
-            }`}
-            layout
-          >
-            <AnimatePresence>
-              {filteredProducts.map((product, index) => (
+          {loading ? (
+            <div className="text-center py-16">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600"></div>
+              <p className="mt-4 text-gray-600">Loading earrings...</p>
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-16"
+            >
+              <div className="text-6xl mb-4">👂</div>
+              <h3 className="text-2xl font-semibold text-gray-800 mb-2">No earrings found</h3>
+              <p className="text-gray-600 mb-4">
+                {earringsProducts.length === 0 
+                  ? 'No earrings have been uploaded yet. Please add some from the admin dashboard.'
+                  : 'Try adjusting your filters to see more results.'}
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div
+              className={`grid gap-8 ${
+                viewMode === 'grid' 
+                  ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
+                  : 'grid-cols-1'
+              }`}
+              layout
+            >
+              <AnimatePresence>
+                {filteredProducts.map((product: any, index: number) => (
                 <motion.div
                   key={product.id}
                   layout
@@ -348,8 +430,8 @@ export default function EarringsPage() {
                   {/* Product Image */}
                   <div className={`relative overflow-hidden ${viewMode === 'list' ? 'w-64' : 'aspect-square'}`}>
                     <Image
-                      src={product.image}
-                      alt={product.name}
+                      src={product.url || product.image}
+                      alt={product.title || product.name}
                       fill
                       className="object-cover group-hover:scale-110 transition-transform duration-500"
                     />
@@ -371,16 +453,22 @@ export default function EarringsPage() {
                     {/* Action Buttons */}
                     <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
-                        onClick={() => toggleFavorite(product.id)}
+                        onClick={() => handleToggleWishlist(product)}
                         className={`p-2 rounded-full backdrop-blur-sm transition-colors ${
-                          favorites.includes(product.id)
+                          isInWishlist(product.id)
                             ? 'bg-red-500 text-white'
                             : 'bg-white/80 text-gray-600 hover:bg-red-500 hover:text-white'
                         }`}
                       >
-                        <Heart className="w-4 h-4" />
+                        <Heart className={`w-4 h-4 ${isInWishlist(product.id) ? 'fill-current' : ''}`} />
                       </button>
-                      <button className="p-2 bg-white/80 backdrop-blur-sm rounded-full text-gray-600 hover:bg-pink-500 hover:text-white transition-colors">
+                      <button 
+                        onClick={() => {
+                          setSelectedProduct(product)
+                          setShowDetailsModal(true)
+                        }}
+                        className="p-2 bg-white/80 backdrop-blur-sm rounded-full text-gray-600 hover:bg-pink-500 hover:text-white transition-colors"
+                      >
                         <Eye className="w-4 h-4" />
                       </button>
                     </div>
@@ -391,72 +479,67 @@ export default function EarringsPage() {
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <h3 className="text-lg font-semibold text-gray-800 group-hover:text-pink-600 transition-colors">
-                          {product.name}
+                          {product.title || product.name}
                         </h3>
-                        <p className="text-sm text-gray-500 capitalize">
-                          {product.type} • {product.material.replace('-', ' ')}
-                          {product.gemstone && ` • ${product.gemstone}`}
+                        <p className="text-sm text-gray-500">
+                          {product.description || product.metadata?.category || 'Earrings'}
                         </p>
                       </div>
                     </div>
 
-                    {/* Rating */}
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="flex items-center">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-4 h-4 ${
-                              i < Math.floor(product.rating)
-                                ? 'text-pink-400 fill-current'
-                                : 'text-gray-300'
-                            }`}
-                          />
-                        ))}
+                    {/* Metadata */}
+                    {product.metadata && (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {product.metadata.purity && (
+                          <span className="text-xs bg-pink-50 text-pink-700 px-2 py-1 rounded">
+                            {product.metadata.purity}
+                          </span>
+                        )}
+                        {product.metadata.diamondCarat && (
+                          <span className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded">
+                            {product.metadata.diamondCarat}
+                          </span>
+                        )}
                       </div>
-                      <span className="text-sm text-gray-600">
-                        {product.rating} ({product.reviews} reviews)
-                      </span>
-                    </div>
+                    )}
 
                     {/* Price */}
                     <div className="flex items-center gap-3 mb-4">
                       <span className="text-2xl font-bold text-gray-800">
-                        ₹{product.price.toLocaleString()}
+                        {product.metadata?.price || `₹${formatPriceNumber(product.price || 0)}`}
                       </span>
-                      {product.originalPrice && (
+                      {product.metadata?.originalPrice && (
                         <span className="text-lg text-gray-400 line-through">
-                          ₹{product.originalPrice.toLocaleString()}
+                          {product.metadata.originalPrice}
                         </span>
                       )}
                     </div>
 
-                    {/* Add to Cart Button */}
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white py-3 rounded-xl font-medium hover:from-pink-600 hover:to-purple-600 transition-all duration-300"
-                    >
-                      <ShoppingBag className="w-5 h-5" />
-                      Add to Cart
-                    </motion.button>
+                    {/* Action Buttons */}
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => handleAddToCart(product)}
+                        className="flex-1 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white"
+                      >
+                        <ShoppingBag className="w-4 h-4 mr-2" />
+                        Add to Cart
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setSelectedProduct(product)
+                          setShowDetailsModal(true)
+                        }}
+                        variant="outline"
+                        className="border-pink-200 text-pink-700 hover:bg-pink-50"
+                      >
+                        View Details
+                      </Button>
+                    </div>
                   </div>
                 </motion.div>
               ))}
             </AnimatePresence>
           </motion.div>
-
-          {/* No Results */}
-          {filteredProducts.length === 0 && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-16"
-            >
-              <div className="text-6xl mb-4">👂</div>
-              <h3 className="text-2xl font-semibold text-gray-800 mb-2">No earrings found</h3>
-              <p className="text-gray-600">Try adjusting your filters to see more results.</p>
-            </motion.div>
           )}
         </div>
       </section>
@@ -499,6 +582,162 @@ export default function EarringsPage() {
           </div>
         </motion.div>
       </section>
+
+      {/* Premium Details Modal */}
+      {showDetailsModal && selectedProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-lg" onClick={() => setShowDetailsModal(false)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 30 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 30 }}
+            transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white max-w-6xl w-full max-h-[95vh] overflow-hidden shadow-2xl rounded-none"
+          >
+            <div className="relative">
+              {/* Premium Close Button */}
+              <button
+                onClick={() => setShowDetailsModal(false)}
+                className="absolute top-8 right-8 z-20 w-14 h-14 flex items-center justify-center bg-white/90 backdrop-blur-md hover:bg-white transition-all duration-300 border border-gray-100 shadow-lg group"
+              >
+                <svg className="w-6 h-6 text-gray-500 group-hover:text-gray-900 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              <div className="grid md:grid-cols-2 h-full">
+                {/* Left Side - Product Image */}
+                <div className="relative bg-gradient-to-br from-slate-50 via-white to-pink-50/30 p-12 md:p-16 flex items-center justify-center min-h-[500px] md:min-h-[600px]">
+                  <div className="relative w-full max-w-lg aspect-square">
+                    <div className="absolute inset-0 bg-gradient-to-br from-pink-100/20 to-purple-100/20 blur-3xl"></div>
+                    <Image
+                      src={selectedProduct.url || selectedProduct.image}
+                      alt={selectedProduct.title || selectedProduct.name}
+                      fill
+                      className="object-contain relative z-10 drop-shadow-2xl"
+                    />
+                  </div>
+                  
+                  {/* Elegant Corner Accents */}
+                  <div className="absolute top-8 left-8 w-12 h-12 border-l-2 border-t-2 border-pink-300/40"></div>
+                  <div className="absolute top-8 right-8 w-12 h-12 border-r-2 border-t-2 border-purple-300/40"></div>
+                  <div className="absolute bottom-8 left-8 w-12 h-12 border-l-2 border-b-2 border-pink-300/40"></div>
+                  <div className="absolute bottom-8 right-8 w-12 h-12 border-r-2 border-b-2 border-purple-300/40"></div>
+                </div>
+
+                {/* Right Side - Product Details */}
+                <div className="p-8 md:p-12 bg-white flex flex-col overflow-y-auto max-h-[95vh]">
+                  <h2 className="text-2xl md:text-3xl font-playfair font-bold text-gray-900 mb-3">
+                    {selectedProduct.title || selectedProduct.name}
+                  </h2>
+
+                  {/* Category Badge */}
+                  {selectedProduct.metadata?.category && (
+                    <div className="mb-6">
+                      <span className="inline-block px-5 py-2 bg-gradient-to-r from-pink-50 to-purple-50 text-pink-700 text-xs font-medium tracking-wider uppercase border border-pink-100">
+                        {selectedProduct.metadata.category}
+                      </span>
+                    </div>
+                  )}
+
+                  {selectedProduct.description && (
+                    <p className="text-gray-600 mb-6 leading-relaxed text-sm">
+                      {selectedProduct.description}
+                    </p>
+                  )}
+
+                  {/* Divider */}
+                  <div className="relative my-6">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-200"></div>
+                    </div>
+                    <div className="relative flex justify-center">
+                      <span className="bg-white px-4 text-[10px] tracking-[0.3em] uppercase text-gray-400">Details</span>
+                    </div>
+                  </div>
+
+                  {/* Detailed Description */}
+                  {selectedProduct.metadata?.detailedDescription && (
+                    <div className="mb-6">
+                      <p className="text-gray-700 leading-relaxed whitespace-pre-line text-sm">
+                        {selectedProduct.metadata.detailedDescription}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Specifications */}
+                  {(selectedProduct.metadata?.purity || selectedProduct.metadata?.diamondCarat) && (
+                    <div className="mb-6 bg-gradient-to-br from-gray-50 to-pink-50/30 p-5 border border-gray-100">
+                      <h4 className="text-[10px] tracking-[0.3em] uppercase text-gray-500 mb-3 font-medium">Specifications</h4>
+                      <div className="space-y-2">
+                        {selectedProduct.metadata?.purity && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-gray-500 uppercase tracking-wider">Material</span>
+                            <span className="text-sm text-gray-900 font-medium">{selectedProduct.metadata.purity}</span>
+                          </div>
+                        )}
+                        {selectedProduct.metadata?.diamondCarat && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-gray-500 uppercase tracking-wider">Gemstone</span>
+                            <span className="text-sm text-gray-900 font-medium">{selectedProduct.metadata.diamondCarat}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Spacer */}
+                  <div className="flex-1"></div>
+
+                  {/* Price Section */}
+                  <div className="mt-6 pt-6 border-t border-gray-200">
+                    <div className="mb-6">
+                      <div className="flex items-baseline gap-3 mb-1">
+                        <span className="text-3xl md:text-4xl font-light text-gray-900">
+                          {selectedProduct.metadata?.price || `₹${formatPriceNumber(selectedProduct.price || 0)}`}
+                        </span>
+                        {selectedProduct.metadata?.originalPrice && (
+                          <span className="text-lg text-gray-400 line-through font-light">
+                            {selectedProduct.metadata.originalPrice}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500">Inclusive of all taxes</p>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-3">
+                      <Button 
+                        onClick={() => {
+                          handleAddToCart(selectedProduct)
+                          setShowDetailsModal(false)
+                        }}
+                        className="flex-1 bg-black hover:bg-gray-900 text-white py-6 text-xs tracking-[0.15em] uppercase font-medium transition-all duration-300"
+                      >
+                        <ShoppingBag className="h-4 w-4 mr-2" />
+                        Add to Cart
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => handleToggleWishlist(selectedProduct)}
+                        className="w-14 h-14 border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all duration-300"
+                      >
+                        <Heart 
+                          className={`h-5 w-5 transition-colors ${
+                            isInWishlist(selectedProduct.id) 
+                              ? 'text-pink-600 fill-current' 
+                              : 'text-gray-600'
+                          }`} 
+                        />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   )
 }

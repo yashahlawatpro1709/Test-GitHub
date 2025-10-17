@@ -1,0 +1,104 @@
+
+> aashni@1.0.0 predev
+> npm run css:build
+
+
+> aashni@1.0.0 css:build
+> tailwindcss -i ./src/app/globals.css -o ./src/app/tailwind.css
+
+
+Rebuilding...
+
+warn - The class `duration-[3000ms]` is ambiguous and matches multiple utilities.
+warn - If this is content and not a class, replace it with `duration-&lsqb;3000ms&rsqb;` to silence this warning.
+
+Done in 427ms.
+
+> aashni@1.0.0 dev
+> next dev -p 3001 -H 127.0.0.1
+
+   ▲ Next.js 14.1.0
+   - Local:        http://127.0.0.1:3001
+   - Network:      http://127.0.0.1:3001
+   - Environments: .env.local
+
+ ✓ Ready in 1886ms
+ ✓ Compiled /src/middleware in 222ms (64 modules)
+[MW] GET http://localhost:3001/admin/setup ua=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36
+ ○ Compiling /admin/setup ...
+ ✓ Compiled /admin/setup in 2.8s (1234 modules)
+[MW] GET http://localhost:3001/woman-in-saree.svg ua=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36
+[MW] GET http://localhost:3001/admin/setup ua=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36
+[MW] GET http://localhost:3001/woman-in-saree.svg ua=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36
+[MW] GET http://localhost:3001/site.webmanifest ua=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36
+[MW] GET http://localhost:3001/favicon-16x16.png ua=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36
+ ✓ Compiled /not-found in 194ms (617 modules)
+[MW] POST http://localhost:3001/api/admin/auth/setup ua=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36
+ ✓ Compiled /api/admin/auth/setup in 334ms (740 modules)
+Setup error: PrismaClientInitializationError: 
+Invalid `prisma.admin.findFirst()` invocation:
+
+
+User `placeholder` was denied access on the database `aashni.public`
+    at $n.handleRequestError (/Users/yashahlawat/Desktop/aashni/node_modules/@prisma/client/runtime/library.js:121:7615)
+    at $n.handleAndLogRequestError (/Users/yashahlawat/Desktop/aashni/node_modules/@prisma/client/runtime/library.js:121:6623)
+    at $n.request (/Users/yashahlawat/Desktop/aashni/node_modules/@prisma/client/runtime/library.js:121:6307)
+    at async l (/Users/yashahlawat/Desktop/aashni/node_modules/@prisma/client/runtime/library.js:130:9633)
+    at async POST (webpack-internal:///(rsc)/./src/app/api/admin/auth/setup/route.ts:15:31)
+    at async /Users/yashahlawat/Desktop/aashni/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:63809
+    at async eU.execute (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:53964)
+    at async eU.handle (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:65062)
+    at async doRender (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/base-server.js:1333:42)
+    at async cacheEntry.responseCache.get.routeKind (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/base-server.js:1555:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/base-server.js:1463:28)
+    at async DevServer.renderPageComponent (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/base-server.js:1856:24)
+    at async DevServer.renderToResponseImpl (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/base-server.js:1894:32)
+    at async DevServer.pipeImpl (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/base-server.js:911:25)
+    at async NextNodeServer.handleCatchallRenderRequest (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/next-server.js:271:17)
+    at async DevServer.handleRequestImpl (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/base-server.js:807:17)
+    at async /Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/dev/next-dev-server.js:331:20
+    at async Span.traceAsyncFn (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/trace/trace.js:151:20)
+    at async DevServer.handleRequest (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/dev/next-dev-server.js:328:24)
+    at async invokeRender (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/lib/router-server.js:163:21)
+    at async handleRequest (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/lib/router-server.js:342:24)
+    at async requestHandlerImpl (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/lib/router-server.js:366:13)
+    at async Server.requestListener (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/lib/start-server.js:140:13) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+   Reload env: .env.local
+ ✓ Compiled in 472ms (1284 modules)
+[MW] GET http://localhost:3001/admin/setup ua=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36
+[MW] POST http://localhost:3001/api/admin/auth/setup ua=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36
+ ✓ Compiled /api/admin/auth/setup in 72ms (737 modules)
+Setup error: PrismaClientInitializationError: 
+Invalid `prisma.admin.findFirst()` invocation:
+
+
+User `placeholder` was denied access on the database `aashni.public`
+    at $n.handleRequestError (/Users/yashahlawat/Desktop/aashni/node_modules/@prisma/client/runtime/library.js:121:7615)
+    at $n.handleAndLogRequestError (/Users/yashahlawat/Desktop/aashni/node_modules/@prisma/client/runtime/library.js:121:6623)
+    at $n.request (/Users/yashahlawat/Desktop/aashni/node_modules/@prisma/client/runtime/library.js:121:6307)
+    at async l (/Users/yashahlawat/Desktop/aashni/node_modules/@prisma/client/runtime/library.js:130:9633)
+    at async POST (webpack-internal:///(rsc)/./src/app/api/admin/auth/setup/route.ts:15:31)
+    at async /Users/yashahlawat/Desktop/aashni/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:63809
+    at async eU.execute (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:53964)
+    at async eU.handle (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:65062)
+    at async doRender (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/base-server.js:1333:42)
+    at async cacheEntry.responseCache.get.routeKind (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/base-server.js:1555:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/base-server.js:1463:28)
+    at async DevServer.renderPageComponent (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/base-server.js:1856:24)
+    at async DevServer.renderToResponseImpl (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/base-server.js:1894:32)
+    at async DevServer.pipeImpl (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/base-server.js:911:25)
+    at async NextNodeServer.handleCatchallRenderRequest (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/next-server.js:271:17)
+    at async DevServer.handleRequestImpl (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/base-server.js:807:17)
+    at async /Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/dev/next-dev-server.js:331:20
+    at async Span.traceAsyncFn (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/trace/trace.js:151:20)
+    at async DevServer.handleRequest (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/dev/next-dev-server.js:328:24)
+    at async invokeRender (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/lib/router-server.js:163:21)
+    at async handleRequest (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/lib/router-server.js:342:24)
+    at async requestHandlerImpl (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/lib/router-server.js:366:13)
+    at async Server.requestListener (/Users/yashahlawat/Desktop/aashni/node_modules/next/dist/server/lib/start-server.js:140:13) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}

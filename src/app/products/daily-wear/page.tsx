@@ -1,27 +1,34 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Grid, List, Filter, Star, Heart, ShoppingBag, Eye, Sparkles, Sun, Coffee, Briefcase } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { useCartStore, useWishlistStore } from '@/store'
+import { formatPriceNumber } from '@/lib/utils'
 
-interface Product {
-  id: string
-  name: string
-  price: number
-  originalPrice?: number
-  image: string
-  category: string
-  rating: number
-  reviews: number
-  isNew?: boolean
-  isBestseller?: boolean
-  occasion: string
-  style: string
+// Fetch daily wear from database
+const fetchDailyWearProducts = async () => {
+  try {
+    const timestamp = new Date().getTime()
+    const response = await fetch(`/api/site-images?section=daily-wear&t=${timestamp}`, {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      }
+    })
+    const data = await response.json()
+    return data.images || []
+  } catch (error) {
+    console.error('Failed to fetch daily wear products:', error)
+    return []
+  }
 }
 
-const dailyWearProducts: Product[] = [
+const dailyWearProductsDummy = [
   {
     id: 'dw1',
     name: 'Minimalist Gold Stud Earrings',
@@ -96,9 +103,9 @@ const dailyWearProducts: Product[] = [
   }
 ]
 
-const categories = ['all', 'earrings', 'rings', 'necklaces', 'bracelets']
-const occasions = ['all', 'office', 'casual', 'everyday']
-const styles = ['all', 'minimalist', 'delicate', 'classic', 'trendy', 'modern']
+const categories = ['all', 'office-wear', 'casual-wear', 'party-wear', 'evening-wear', 'weekend-wear', 'brunch-wear', 'everyday', 'minimalist']
+const jewelryTypes = ['all', 'Earrings', 'Necklace', 'Bracelet', 'Ring', 'Pendant', 'Anklet', 'Chain']
+const styles = ['all', 'Minimalist', 'Classic', 'Modern', 'Bohemian', 'Elegant', 'Trendy', 'Delicate']
 const priceRanges = [
   { label: 'All Prices', min: 0, max: Infinity },
   { label: 'Under ₹3,000', min: 0, max: 3000 },
@@ -109,34 +116,90 @@ const priceRanges = [
 export default function DailyWearPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [selectedCategory, setSelectedCategory] = useState('all')
-  const [selectedOccasion, setSelectedOccasion] = useState('all')
+  const [selectedJewelryType, setSelectedJewelryType] = useState('all')
   const [selectedStyle, setSelectedStyle] = useState('all')
   const [selectedPriceRange, setSelectedPriceRange] = useState(0)
   const [showFilters, setShowFilters] = useState(false)
-  const [filteredProducts, setFilteredProducts] = useState(dailyWearProducts)
-  const [favorites, setFavorites] = useState<string[]>([])
+  const [dailyWearProducts, setDailyWearProducts] = useState<any[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedProduct, setSelectedProduct] = useState<any>(null)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  
+  // Cart and Wishlist stores
+  const { addItem: addToCart } = useCartStore()
+  const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlistStore()
+
+  const handleAddToCart = (product: any) => {
+    const priceValue = product.metadata?.price || product.price || '0'
+    const productData = {
+      id: product.id,
+      name: product.title || product.name,
+      price: parseFloat(priceValue.toString().replace(/[^0-9.]/g, '')),
+      images: [product.url || product.image],
+      slug: product.id,
+    } as any
+    addToCart(productData)
+  }
+
+  const handleToggleWishlist = (product: any) => {
+    if (isInWishlist(product.id)) {
+      removeFromWishlist(product.id)
+    } else {
+      const priceValue = product.metadata?.price || product.price || '0'
+      const wishlistData = {
+        id: product.id,
+        productId: product.id,
+        product: {
+          name: product.title || product.name,
+          images: [product.url || product.image],
+          slug: product.id,
+        },
+        price: parseFloat(priceValue.toString().replace(/[^0-9.]/g, '')),
+        addedAt: new Date()
+      } as any
+      addToWishlist(wishlistData)
+    }
+  }
+
+  // Fetch products on mount
+  useEffect(() => {
+    async function loadProducts() {
+      const products = await fetchDailyWearProducts()
+      console.log('Fetched daily wear products:', products)
+      setDailyWearProducts(products)
+      setFilteredProducts(products)
+      setLoading(false)
+    }
+    loadProducts()
+  }, [])
 
   useEffect(() => {
-    let filtered = dailyWearProducts.filter(product => {
-      const categoryMatch = selectedCategory === 'all' || product.category === selectedCategory
-      const occasionMatch = selectedOccasion === 'all' || product.occasion === selectedOccasion
-      const styleMatch = selectedStyle === 'all' || product.style === selectedStyle
-      const priceMatch = product.price >= priceRanges[selectedPriceRange].min && 
-                        product.price <= priceRanges[selectedPriceRange].max
+    let filtered = dailyWearProducts.filter((product: any) => {
+      // For database products, use metadata.category for filtering
+      const category = product.metadata?.category || product.category || ''
+      const categoryMatch = selectedCategory === 'all' || 
+                           category.toLowerCase().includes(selectedCategory.toLowerCase())
       
-      return categoryMatch && occasionMatch && styleMatch && priceMatch
+      const jewelryType = product.metadata?.jewelryType || ''
+      const jewelryTypeMatch = selectedJewelryType === 'all' || jewelryType === selectedJewelryType
+      
+      const style = product.metadata?.style || ''
+      const styleMatch = selectedStyle === 'all' || style === selectedStyle
+      
+      // Get price from metadata or product
+      const productPrice = product.metadata?.price 
+        ? parseFloat(product.metadata.price.replace(/[^0-9.]/g, '')) 
+        : (product.price || 0)
+      
+      const priceMatch = productPrice >= priceRanges[selectedPriceRange].min && 
+                        productPrice <= priceRanges[selectedPriceRange].max
+      
+      return categoryMatch && jewelryTypeMatch && styleMatch && priceMatch
     })
     
     setFilteredProducts(filtered)
-  }, [selectedCategory, selectedOccasion, selectedStyle, selectedPriceRange])
-
-  const toggleFavorite = (productId: string) => {
-    setFavorites(prev => 
-      prev.includes(productId) 
-        ? prev.filter(id => id !== productId)
-        : [...prev, productId]
-    )
-  }
+  }, [selectedCategory, selectedJewelryType, selectedStyle, selectedPriceRange, dailyWearProducts])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-orange-50">
@@ -226,7 +289,7 @@ export default function DailyWearPage() {
               </motion.button>
               
               <div className="text-sm text-gray-600 font-light">
-                {filteredProducts.length} pieces
+                {loading ? 'Loading...' : `${filteredProducts.length} pieces`}
               </div>
             </motion.div>
 
@@ -288,17 +351,17 @@ export default function DailyWearPage() {
                     </select>
                   </div>
 
-                  {/* Occasion Filter */}
+                  {/* Jewelry Type Filter */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Occasion</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Jewelry Type</label>
                     <select
-                      value={selectedOccasion}
-                      onChange={(e) => setSelectedOccasion(e.target.value)}
+                      value={selectedJewelryType}
+                      onChange={(e) => setSelectedJewelryType(e.target.value)}
                       className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                     >
-                      {occasions.map(occasion => (
-                        <option key={occasion} value={occasion}>
-                          {occasion.charAt(0).toUpperCase() + occasion.slice(1)}
+                      {jewelryTypes.map(type => (
+                        <option key={type} value={type}>
+                          {type}
                         </option>
                       ))}
                     </select>
@@ -358,16 +421,36 @@ export default function DailyWearPage() {
             <div className="w-20 h-px bg-gradient-to-r from-transparent via-amber-400 to-transparent mx-auto"></div>
           </motion.div>
 
-          <motion.div
-            className={`grid gap-6 ${
-              viewMode === 'grid' 
-                ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
-                : 'grid-cols-1 max-w-4xl mx-auto'
-            }`}
-            layout
-          >
-            <AnimatePresence>
-              {filteredProducts.map((product, index) => (
+          {loading ? (
+            <div className="text-center py-16">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
+              <p className="mt-4 text-gray-600">Loading daily wear collection...</p>
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-16"
+            >
+              <div className="text-6xl mb-4">☀️</div>
+              <h3 className="text-2xl font-semibold text-gray-800 mb-2">No products found</h3>
+              <p className="text-gray-600 mb-4">
+                {dailyWearProducts.length === 0 
+                  ? 'No daily wear products have been uploaded yet. Please add some from the admin dashboard.'
+                  : 'Try adjusting your filters to see more results.'}
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div
+              className={`grid gap-6 ${
+                viewMode === 'grid' 
+                  ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
+                  : 'grid-cols-1 max-w-4xl mx-auto'
+              }`}
+              layout
+            >
+              <AnimatePresence>
+                {filteredProducts.map((product: any, index: number) => (
                 <motion.div
                   key={product.id}
                   layout
@@ -383,8 +466,8 @@ export default function DailyWearPage() {
                   {/* Premium Product Image */}
                   <div className={`relative overflow-hidden ${viewMode === 'list' ? 'w-80' : 'aspect-square'}`}>
                     <Image
-                      src={product.image}
-                      alt={product.name}
+                      src={product.url || product.image}
+                      alt={product.title || product.name}
                       fill
                       className="object-cover group-hover:scale-110 transition-transform duration-700"
                     />
@@ -409,16 +492,22 @@ export default function DailyWearPage() {
                     {/* Action Buttons */}
                     <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
-                        onClick={() => toggleFavorite(product.id)}
+                        onClick={() => handleToggleWishlist(product)}
                         className={`p-2 rounded-full backdrop-blur-sm transition-colors ${
-                          favorites.includes(product.id)
+                          isInWishlist(product.id)
                             ? 'bg-red-500 text-white'
                             : 'bg-white/80 text-gray-600 hover:bg-red-500 hover:text-white'
                         }`}
                       >
-                        <Heart className="w-4 h-4" />
+                        <Heart className={`w-4 h-4 ${isInWishlist(product.id) ? 'fill-current' : ''}`} />
                       </button>
-                      <button className="p-2 bg-white/80 backdrop-blur-sm rounded-full text-gray-600 hover:bg-amber-500 hover:text-white transition-colors">
+                      <button 
+                        onClick={() => {
+                          setSelectedProduct(product)
+                          setShowDetailsModal(true)
+                        }}
+                        className="p-2 bg-white/80 backdrop-blur-sm rounded-full text-gray-600 hover:bg-amber-500 hover:text-white transition-colors"
+                      >
                         <Eye className="w-4 h-4" />
                       </button>
                     </div>
@@ -429,71 +518,67 @@ export default function DailyWearPage() {
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <h3 className="text-lg font-semibold text-gray-800 group-hover:text-amber-600 transition-colors">
-                          {product.name}
+                          {product.title || product.name}
                         </h3>
-                        <p className="text-sm text-gray-500 capitalize">
-                          {product.category} • {product.occasion}
+                        <p className="text-sm text-gray-500">
+                          {product.metadata?.jewelryType || product.category} • {product.metadata?.category || product.occasion}
                         </p>
                       </div>
                     </div>
 
-                    {/* Rating */}
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="flex items-center">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-4 h-4 ${
-                              i < Math.floor(product.rating)
-                                ? 'text-amber-400 fill-current'
-                                : 'text-gray-300'
-                            }`}
-                          />
-                        ))}
+                    {/* Metadata */}
+                    {product.metadata && (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {product.metadata.style && (
+                          <span className="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded">
+                            {product.metadata.style}
+                          </span>
+                        )}
+                        {product.metadata.purity && (
+                          <span className="text-xs bg-orange-50 text-orange-700 px-2 py-1 rounded">
+                            {product.metadata.purity}
+                          </span>
+                        )}
                       </div>
-                      <span className="text-sm text-gray-600">
-                        {product.rating} ({product.reviews} reviews)
-                      </span>
-                    </div>
+                    )}
 
                     {/* Price */}
                     <div className="flex items-center gap-3 mb-4">
                       <span className="text-2xl font-bold text-gray-800">
-                        ₹{product.price.toLocaleString()}
+                        {product.metadata?.price || `₹${formatPriceNumber(product.price || 0)}`}
                       </span>
-                      {product.originalPrice && (
+                      {product.metadata?.originalPrice && (
                         <span className="text-lg text-gray-400 line-through">
-                          ₹{product.originalPrice.toLocaleString()}
+                          {product.metadata.originalPrice}
                         </span>
                       )}
                     </div>
 
-                    {/* Add to Cart Button */}
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white py-3 rounded-xl font-medium hover:from-amber-600 hover:to-orange-600 transition-all duration-300"
-                    >
-                      <ShoppingBag className="w-5 h-5" />
-                      Add to Cart
-                    </motion.button>
+                    {/* Action Buttons */}
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => handleAddToCart(product)}
+                        className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+                      >
+                        <ShoppingBag className="w-4 h-4 mr-2" />
+                        Add to Cart
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setSelectedProduct(product)
+                          setShowDetailsModal(true)
+                        }}
+                        variant="outline"
+                        className="border-amber-200 text-amber-700 hover:bg-amber-50"
+                      >
+                        View Details
+                      </Button>
+                    </div>
                   </div>
                 </motion.div>
               ))}
             </AnimatePresence>
           </motion.div>
-
-          {/* No Results */}
-          {filteredProducts.length === 0 && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-16"
-            >
-              <div className="text-6xl mb-4">💍</div>
-              <h3 className="text-2xl font-semibold text-gray-800 mb-2">No products found</h3>
-              <p className="text-gray-600">Try adjusting your filters to see more results.</p>
-            </motion.div>
           )}
         </div>
       </section>
@@ -536,6 +621,162 @@ export default function DailyWearPage() {
           </div>
         </motion.div>
       </section>
+
+      {/* Premium Details Modal */}
+      {showDetailsModal && selectedProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-lg" onClick={() => setShowDetailsModal(false)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 30 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 30 }}
+            transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white max-w-6xl w-full max-h-[95vh] overflow-hidden shadow-2xl rounded-none"
+          >
+            <div className="relative">
+              {/* Premium Close Button */}
+              <button
+                onClick={() => setShowDetailsModal(false)}
+                className="absolute top-8 right-8 z-20 w-14 h-14 flex items-center justify-center bg-white/90 backdrop-blur-md hover:bg-white transition-all duration-300 border border-gray-100 shadow-lg group"
+              >
+                <svg className="w-6 h-6 text-gray-500 group-hover:text-gray-900 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              <div className="grid md:grid-cols-2 h-full">
+                {/* Left Side - Product Image */}
+                <div className="relative bg-gradient-to-br from-amber-50 via-white to-orange-50/30 p-12 md:p-16 flex items-center justify-center min-h-[500px] md:min-h-[600px]">
+                  <div className="relative w-full max-w-lg aspect-square">
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-100/20 to-orange-100/20 blur-3xl"></div>
+                    <Image
+                      src={selectedProduct.url || selectedProduct.image}
+                      alt={selectedProduct.title || selectedProduct.name}
+                      fill
+                      className="object-contain relative z-10 drop-shadow-2xl"
+                    />
+                  </div>
+                  
+                  {/* Elegant Corner Accents */}
+                  <div className="absolute top-8 left-8 w-12 h-12 border-l-2 border-t-2 border-amber-300/40"></div>
+                  <div className="absolute top-8 right-8 w-12 h-12 border-r-2 border-t-2 border-orange-300/40"></div>
+                  <div className="absolute bottom-8 left-8 w-12 h-12 border-l-2 border-b-2 border-amber-300/40"></div>
+                  <div className="absolute bottom-8 right-8 w-12 h-12 border-r-2 border-b-2 border-orange-300/40"></div>
+                </div>
+
+                {/* Right Side - Product Details */}
+                <div className="p-8 md:p-12 bg-white flex flex-col overflow-y-auto max-h-[95vh]">
+                  <h2 className="text-2xl md:text-3xl font-playfair font-bold text-gray-900 mb-3">
+                    {selectedProduct.title || selectedProduct.name}
+                  </h2>
+
+                  {/* Category Badge */}
+                  {selectedProduct.metadata?.category && (
+                    <div className="mb-6">
+                      <span className="inline-block px-5 py-2 bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 text-xs font-medium tracking-wider uppercase border border-amber-100">
+                        {selectedProduct.metadata.category}
+                      </span>
+                    </div>
+                  )}
+
+                  {selectedProduct.description && (
+                    <p className="text-gray-600 mb-6 leading-relaxed text-sm">
+                      {selectedProduct.description}
+                    </p>
+                  )}
+
+                  {/* Divider */}
+                  <div className="relative my-6">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-200"></div>
+                    </div>
+                    <div className="relative flex justify-center">
+                      <span className="bg-white px-4 text-[10px] tracking-[0.3em] uppercase text-gray-400">Details</span>
+                    </div>
+                  </div>
+
+                  {/* Detailed Description */}
+                  {selectedProduct.metadata?.detailedDescription && (
+                    <div className="mb-6">
+                      <p className="text-gray-700 leading-relaxed whitespace-pre-line text-sm">
+                        {selectedProduct.metadata.detailedDescription}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Specifications */}
+                  {(selectedProduct.metadata?.jewelryType || selectedProduct.metadata?.style) && (
+                    <div className="mb-6 bg-gradient-to-br from-gray-50 to-amber-50/30 p-5 border border-gray-100">
+                      <h4 className="text-[10px] tracking-[0.3em] uppercase text-gray-500 mb-3 font-medium">Specifications</h4>
+                      <div className="space-y-2">
+                        {selectedProduct.metadata?.jewelryType && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-gray-500 uppercase tracking-wider">Type</span>
+                            <span className="text-sm text-gray-900 font-medium">{selectedProduct.metadata.jewelryType}</span>
+                          </div>
+                        )}
+                        {selectedProduct.metadata?.style && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-gray-500 uppercase tracking-wider">Style</span>
+                            <span className="text-sm text-gray-900 font-medium">{selectedProduct.metadata.style}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Spacer */}
+                  <div className="flex-1"></div>
+
+                  {/* Price Section */}
+                  <div className="mt-6 pt-6 border-t border-gray-200">
+                    <div className="mb-6">
+                      <div className="flex items-baseline gap-3 mb-1">
+                        <span className="text-3xl md:text-4xl font-light text-gray-900">
+                          {selectedProduct.metadata?.price || `₹${formatPriceNumber(selectedProduct.price || 0)}`}
+                        </span>
+                        {selectedProduct.metadata?.originalPrice && (
+                          <span className="text-lg text-gray-400 line-through font-light">
+                            {selectedProduct.metadata.originalPrice}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500">Inclusive of all taxes</p>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-3">
+                      <Button 
+                        onClick={() => {
+                          handleAddToCart(selectedProduct)
+                          setShowDetailsModal(false)
+                        }}
+                        className="flex-1 bg-black hover:bg-gray-900 text-white py-6 text-xs tracking-[0.15em] uppercase font-medium transition-all duration-300"
+                      >
+                        <ShoppingBag className="h-4 w-4 mr-2" />
+                        Add to Cart
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => handleToggleWishlist(selectedProduct)}
+                        className="w-14 h-14 border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all duration-300"
+                      >
+                        <Heart 
+                          className={`h-5 w-5 transition-colors ${
+                            isInWishlist(selectedProduct.id) 
+                              ? 'text-amber-600 fill-current' 
+                              : 'text-gray-600'
+                          }`} 
+                        />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   )
 }

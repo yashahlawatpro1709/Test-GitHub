@@ -1,13 +1,46 @@
 "use client"
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, Heart, Star, Award, Sparkles, Crown, Diamond, Gem } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
+const defaultImage = "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800&h=600&fit=crop&crop=center"
+
 export function BrandStory() {
+  const [brandImage, setBrandImage] = useState(defaultImage)
+
+  // Fetch uploaded brand story image from database
+  useEffect(() => {
+    async function fetchBrandImage() {
+      try {
+        const timestamp = new Date().getTime()
+        const response = await fetch(`/api/site-images?section=brand-story&t=${timestamp}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        })
+        const data = await response.json()
+        
+        if (data.images && data.images.length > 0) {
+          const mainImage = data.images.find((img: any) => img.imageKey === 'main-image')
+          if (mainImage) {
+            setBrandImage(mainImage.url)
+            console.log('Loaded brand story image:', mainImage.url)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch brand story image:', error)
+      }
+    }
+
+    fetchBrandImage()
+  }, [])
+
   return (
     <section id="brand-story" className="py-24 bg-gradient-to-br from-white via-slate-50/50 to-rose-50/30 relative overflow-hidden">
       {/* Background Decorative Elements */}
@@ -241,9 +274,10 @@ export function BrandStory() {
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
               >
                 <Image
-                  src="https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
-                  alt="Master craftsman creating jewelry"
+                  src={brandImage}
+                  alt="Crafting Dreams Into Reality - AASHNI Brand Story"
                   fill
+                  unoptimized={brandImage.startsWith('/uploads')}
                   className="object-cover"
                   sizes="(max-width: 768px) 100vw, 50vw"
                 />

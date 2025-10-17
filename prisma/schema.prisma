@@ -329,3 +329,32 @@ enum PaymentStatus {
   REFUNDED
   PARTIALLY_REFUNDED
 }
+
+model Admin {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String   // Hashed password
+  email     String?  @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("admins")
+}
+
+model SiteImage {
+  id          String   @id @default(cuid())
+  section     String   // e.g., "hero", "featured-collections", "brand-story", "product-showcase", "testimonials"
+  imageKey    String   // e.g., "slide-1", "collection-1", "main-image"
+  url         String
+  alt         String?
+  title       String?
+  description String?
+  metadata    Json?    // Additional metadata like dimensions, order, etc.
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([section, imageKey])
+  @@map("site_images")
+}

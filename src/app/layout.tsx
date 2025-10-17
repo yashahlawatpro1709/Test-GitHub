@@ -3,7 +3,10 @@ import type { Metadata } from 'next'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
+import { CartSidebar } from '@/components/cart/cart-sidebar'
+import { WishlistSidebar } from '@/components/wishlist/wishlist-sidebar'
 import { Toaster } from 'react-hot-toast'
+import { Toaster as ShadcnToaster } from '@/components/ui/toaster'
 import { ChatbotProvider } from '@/components/ui/chatbot-provider'
 
 export const metadata: Metadata = {
@@ -96,6 +99,8 @@ export default function RootLayout({
               </main>
               <Footer />
             </div>
+            <CartSidebar />
+            <WishlistSidebar />
             <Toaster 
               position="bottom-right"
               toastOptions={{
@@ -107,6 +112,7 @@ export default function RootLayout({
                 },
               }}
             />
+            <ShadcnToaster />
           </ChatbotProvider>
         </ThemeProvider>
       </body>

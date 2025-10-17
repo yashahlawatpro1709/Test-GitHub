@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -8,7 +8,67 @@ import { ArrowRight, Sparkles, Crown, Diamond } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { collections as dataCollections } from '@/data/dummy'
 
+interface CollectionImage {
+  id: string
+  url: string
+  title?: string
+  description?: string
+  imageKey: string
+}
+
 export function FeaturedCollections() {
+  const [collections, setCollections] = useState(dataCollections)
+  const [loading, setLoading] = useState(true)
+
+  // Fetch uploaded collection images from database
+  useEffect(() => {
+    async function fetchCollectionImages() {
+      try {
+        // Add timestamp to prevent caching
+        const timestamp = new Date().getTime()
+        const response = await fetch(`/api/site-images?section=featured-collections&t=${timestamp}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        })
+        const data = await response.json()
+        
+        if (data.images && data.images.length > 0) {
+          // Create collections from uploaded images
+          const uploadedCollections = data.images.map((img: CollectionImage, index: number) => {
+            const defaultCollection = dataCollections[index % dataCollections.length]
+            return {
+              slug: img.imageKey || `collection-${index + 1}`,
+              title: img.title || defaultCollection.title,
+              description: img.description || defaultCollection.description,
+              banner: img.url,
+              categories: defaultCollection.categories
+            }
+          })
+          
+          // Use uploaded images
+          console.log('=== FEATURED COLLECTIONS DEBUG ===')
+          console.log('Raw API response:', data.images)
+          console.log('Uploaded collections:', uploadedCollections)
+          console.log('Number of collections:', uploadedCollections.length)
+          setCollections(uploadedCollections)
+        } else {
+          console.log('No uploaded collections found, using defaults')
+          console.log('API response:', data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch collection images:', error)
+        // Keep using default collections on error
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCollectionImages()
+  }, [])
+
   return (
     <section id="featured-collections" className="py-24 bg-gradient-to-br from-slate-50 via-white to-rose-50/30 relative overflow-hidden">
       {/* Background Decorative Elements */}
@@ -112,7 +172,7 @@ export function FeaturedCollections() {
 
         {/* Collections Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10">
-          {dataCollections.map((collection, index) => (
+          {collections.map((collection, index) => (
             <motion.div
               key={collection.slug}
               initial={{ opacity: 0, y: 50 }}
@@ -131,6 +191,12 @@ export function FeaturedCollections() {
                       fill
                       className="object-cover transition-all duration-1000 group-hover:scale-110 group-hover:rotate-1"
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      unoptimized={collection.banner.startsWith('/uploads') || collection.banner.endsWith('.svg')}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement
+                        console.error('Image failed to load:', collection.banner)
+                        target.src = 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=1200&h=800&fit=crop&crop=center'
+                      }}
                     />
                     
                     {/* Gradient Overlays */}

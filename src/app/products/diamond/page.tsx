@@ -4,10 +4,34 @@ import React, { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Diamond, Star, Heart, Sparkles, ArrowRight, Filter, Grid, List, ChevronDown, Award, Gem } from 'lucide-react'
+import { Diamond, Star, Heart, Sparkles, ArrowRight, Filter, Grid, List, ChevronDown, Award, Gem, ShoppingBag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+<<<<<<< Updated upstream
+=======
+import { formatPriceNumber } from '@/lib/utils'
+import { useCartStore, useWishlistStore } from '@/store'
+>>>>>>> Stashed changes
 
-const diamondProducts = [
+// Fetch products from database
+const fetchDiamondProducts = async () => {
+  try {
+    const timestamp = new Date().getTime()
+    const response = await fetch(`/api/site-images?section=diamond-jewelry&t=${timestamp}`, {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      }
+    })
+    const data = await response.json()
+    return data.images || []
+  } catch (error) {
+    console.error('Failed to fetch diamond products:', error)
+    return []
+  }
+}
+
+const diamondProductsDummy = [
   {
     id: 1,
     name: "Eternal Solitaire Ring",
@@ -113,38 +137,90 @@ export default function DiamondPage() {
   const [selectedColor, setSelectedColor] = useState("All")
   const [selectedPriceRange, setSelectedPriceRange] = useState("All")
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [filteredProducts, setFilteredProducts] = useState(diamondProducts)
+  const [diamondProducts, setDiamondProducts] = useState<any[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedProduct, setSelectedProduct] = useState<any>(null)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  
+  // Cart and Wishlist stores
+  const { addItem: addToCart } = useCartStore()
+  const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlistStore()
+
+  const handleAddToCart = (product: any) => {
+    const productData = {
+      id: product.id,
+      name: product.title || product.name,
+      price: parseFloat((product.metadata?.price || product.price).toString().replace(/[^0-9.]/g, '')),
+      images: [product.url || product.image],
+      slug: product.id,
+    } as any
+    addToCart(productData)
+  }
+
+  const handleToggleWishlist = (product: any) => {
+    if (isInWishlist(product.id)) {
+      removeFromWishlist(product.id)
+    } else {
+      const wishlistData = {
+        id: product.id,
+        productId: product.id,
+        product: {
+          name: product.title || product.name,
+          images: [product.url || product.image],
+          slug: product.id,
+        },
+        price: parseFloat((product.metadata?.price || product.price).toString().replace(/[^0-9.]/g, '')),
+        addedAt: new Date()
+      } as any
+      addToWishlist(wishlistData)
+    }
+  }
+
+  // Fetch products on mount
+  useEffect(() => {
+    async function loadProducts() {
+      const products = await fetchDiamondProducts()
+      setDiamondProducts(products)
+      setFilteredProducts(products)
+      setLoading(false)
+    }
+    loadProducts()
+  }, [])
 
   useEffect(() => {
     let filtered = diamondProducts
 
     if (selectedCategory !== "All") {
-      filtered = filtered.filter(product => product.category === selectedCategory)
+      filtered = filtered.filter(product => product.metadata?.category === selectedCategory.toLowerCase())
     }
 
     if (selectedCut !== "All") {
-      filtered = filtered.filter(product => product.cut === selectedCut)
+      filtered = filtered.filter(product => product.metadata?.cut === selectedCut)
     }
 
     if (selectedClarity !== "All") {
-      filtered = filtered.filter(product => product.clarity === selectedClarity)
+      filtered = filtered.filter(product => product.metadata?.clarity === selectedClarity)
     }
 
     if (selectedColor !== "All") {
-      filtered = filtered.filter(product => product.color === selectedColor)
+      filtered = filtered.filter(product => product.metadata?.color === selectedColor)
     }
 
     if (selectedPriceRange !== "All") {
       filtered = filtered.filter(product => {
+        const priceStr = product.metadata?.price || ''
+        const price = parseInt(priceStr.replace(/[^0-9]/g, ''))
+        
         switch (selectedPriceRange) {
           case "Under ₹1,00,000":
-            return product.price < 100000
+            return price < 100000
           case "₹1,00,000 - ₹2,00,000":
-            return product.price >= 100000 && product.price <= 200000
+            return price >= 100000 && price <= 200000
           case "₹2,00,000 - ₹3,00,000":
-            return product.price >= 200000 && product.price <= 300000
+            return price >= 200000 && price <= 300000
           case "Above ₹3,00,000":
-            return product.price > 300000
+            return price > 300000
           default:
             return true
         }
@@ -152,7 +228,7 @@ export default function DiamondPage() {
     }
 
     setFilteredProducts(filtered)
-  }, [selectedCategory, selectedCut, selectedClarity, selectedColor, selectedPriceRange])
+  }, [diamondProducts, selectedCategory, selectedCut, selectedClarity, selectedColor, selectedPriceRange])
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 via-indigo-50 to-white">
@@ -407,8 +483,8 @@ export default function DiamondPage() {
                   {/* Product Image */}
                   <div className={viewMode === 'grid' ? "relative h-80 overflow-hidden" : "relative w-64 h-64 flex-shrink-0 overflow-hidden"}>
                     <Image
-                      src={product.image}
-                      alt={product.name}
+                      src={product.url || product.image}
+                      alt={product.title || product.name}
                       fill
                       className="object-cover group-hover:scale-110 transition-transform duration-700"
                     />
@@ -448,29 +524,41 @@ export default function DiamondPage() {
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-medium text-blue-600 uppercase tracking-wider">
-                          {product.category}
+                          {product.metadata?.category || product.category}
                         </span>
                         <span className="text-xs font-medium text-gray-500">
-                          {product.carat} • {product.cut}
+                          {product.metadata?.diamondCarat || product.carat} • {product.metadata?.cut || product.cut}
                         </span>
                       </div>
 
                       <h3 className="text-xl font-playfair font-bold text-gray-900 mb-3 group-hover:text-blue-700 transition-colors">
-                        {product.name}
+                        {product.title || product.name}
                       </h3>
 
+                      {product.description && (
+                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{product.description}</p>
+                      )}
+
                       <div className="flex items-center gap-4 mb-3 text-xs text-gray-600">
-                        <span>Clarity: {product.clarity}</span>
-                        <span>Color: {product.color}</span>
+                        {product.metadata?.clarity && <span>Clarity: {product.metadata.clarity}</span>}
+                        {product.metadata?.color && <span>Color: {product.metadata.color}</span>}
                       </div>
 
                       <div className="flex items-center gap-2 mb-4">
                         <span className="text-2xl font-bold text-gray-900">
+<<<<<<< Updated upstream
                           ₹{product.price.toLocaleString()}
+=======
+                          {product.metadata?.price || `₹${formatPriceNumber(product.price)}`}
+>>>>>>> Stashed changes
                         </span>
-                        {product.originalPrice && (
+                        {product.metadata?.originalPrice && (
                           <span className="text-lg text-gray-500 line-through">
+<<<<<<< Updated upstream
                             ₹{product.originalPrice.toLocaleString()}
+=======
+                            {product.metadata.originalPrice}
+>>>>>>> Stashed changes
                           </span>
                         )}
                       </div>
@@ -487,6 +575,10 @@ export default function DiamondPage() {
                       </Button>
                       <Button
                         size="sm"
+                        onClick={() => {
+                          setSelectedProduct(product)
+                          setShowDetailsModal(true)
+                        }}
                         className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
                       >
                         View Details
@@ -587,6 +679,168 @@ export default function DiamondPage() {
           </motion.div>
         </div>
       </section>
+
+      {/* Premium Details Modal */}
+      {showDetailsModal && selectedProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md" onClick={() => setShowDetailsModal(false)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white max-w-5xl w-full max-h-[90vh] overflow-hidden shadow-2xl"
+          >
+            <div className="relative">
+              {/* Elegant Close Button */}
+              <button
+                onClick={() => setShowDetailsModal(false)}
+                className="absolute top-6 right-6 z-10 w-12 h-12 flex items-center justify-center bg-white/95 backdrop-blur-sm hover:bg-white transition-all border border-gray-200 group"
+              >
+                <svg className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              <div className="grid md:grid-cols-2 overflow-y-auto max-h-[90vh]">
+                {/* Left Side - Product Image */}
+                <div className="relative bg-gradient-to-br from-slate-50 to-white p-12 flex items-center justify-center border-r border-gray-100">
+                  <div className="relative w-full aspect-square">
+                    <Image
+                      src={selectedProduct.url || selectedProduct.image}
+                      alt={selectedProduct.title || selectedProduct.name}
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                  {/* Decorative Corner Elements */}
+                  <div className="absolute top-8 left-8 w-12 h-12 border-l border-t border-gray-200"></div>
+                  <div className="absolute top-8 right-8 w-12 h-12 border-r border-t border-gray-200"></div>
+                  <div className="absolute bottom-8 left-8 w-12 h-12 border-l border-b border-gray-200"></div>
+                  <div className="absolute bottom-8 right-8 w-12 h-12 border-r border-b border-gray-200"></div>
+                </div>
+
+                {/* Right Side - Product Details */}
+                <div className="p-10 bg-white">
+                <h2 className="text-3xl font-playfair font-bold text-gray-900 mb-4">
+                  {selectedProduct.title || selectedProduct.name}
+                </h2>
+
+                  {selectedProduct.description && (
+                    <p className="text-gray-500 mb-8 leading-relaxed font-light">
+                      {selectedProduct.description}
+                    </p>
+                  )}
+
+                  {/* Diamond Specifications */}
+                  <div className="mb-8">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="h-px flex-1 bg-gradient-to-r from-transparent to-gray-200"></div>
+                      <span className="text-xs tracking-[0.2em] uppercase text-gray-400 font-light">Specifications</span>
+                      <div className="h-px flex-1 bg-gradient-to-l from-transparent to-gray-200"></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      {selectedProduct.metadata?.cut && (
+                        <div className="p-4 border border-gray-100 bg-slate-50">
+                          <div className="text-[10px] tracking-[0.2em] uppercase text-gray-400 mb-2 font-light">Cut</div>
+                          <div className="text-sm font-medium text-gray-900">{selectedProduct.metadata.cut}</div>
+                        </div>
+                      )}
+                      {selectedProduct.metadata?.clarity && (
+                        <div className="p-4 border border-gray-100 bg-slate-50">
+                          <div className="text-[10px] tracking-[0.2em] uppercase text-gray-400 mb-2 font-light">Clarity</div>
+                          <div className="text-sm font-medium text-gray-900">{selectedProduct.metadata.clarity}</div>
+                        </div>
+                      )}
+                      {selectedProduct.metadata?.color && (
+                        <div className="p-4 border border-gray-100 bg-slate-50">
+                          <div className="text-[10px] tracking-[0.2em] uppercase text-gray-400 mb-2 font-light">Color</div>
+                          <div className="text-sm font-medium text-gray-900">{selectedProduct.metadata.color}</div>
+                        </div>
+                      )}
+                      {selectedProduct.metadata?.diamondCarat && (
+                        <div className="p-4 border border-gray-100 bg-slate-50">
+                          <div className="text-[10px] tracking-[0.2em] uppercase text-gray-400 mb-2 font-light">Carat</div>
+                          <div className="text-sm font-medium text-gray-900">{selectedProduct.metadata.diamondCarat}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Detailed Description */}
+                  {selectedProduct.metadata?.detailedDescription && (
+                    <div className="mb-8">
+                      <h3 className="text-sm tracking-[0.15em] uppercase text-gray-900 mb-4 font-medium">About This Piece</h3>
+                      <p className="text-gray-600 leading-relaxed whitespace-pre-line font-light text-sm">
+                        {selectedProduct.metadata.detailedDescription}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Additional Details */}
+                  {(selectedProduct.metadata?.metal || selectedProduct.metadata?.diamond) && (
+                    <div className="mb-8 space-y-4">
+                      {selectedProduct.metadata?.metal && (
+                        <div className="pb-4 border-b border-gray-100">
+                          <h4 className="text-[10px] tracking-[0.2em] uppercase text-gray-400 mb-2 font-light">Metal</h4>
+                          <p className="text-gray-700 text-sm font-light">{selectedProduct.metadata.metal}</p>
+                        </div>
+                      )}
+                      {selectedProduct.metadata?.diamond && (
+                        <div className="pb-4 border-b border-gray-100">
+                          <h4 className="text-[10px] tracking-[0.2em] uppercase text-gray-400 mb-2 font-light">Diamond Details</h4>
+                          <p className="text-gray-700 text-sm font-light">{selectedProduct.metadata.diamond}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Price */}
+                  <div className="mb-8 pt-6 border-t border-gray-200">
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-3xl font-light text-gray-900 tracking-wide">
+                        {selectedProduct.metadata?.price || `₹${formatPriceNumber(selectedProduct.price)}`}
+                      </span>
+                      {selectedProduct.metadata?.originalPrice && (
+                        <span className="text-lg text-gray-400 line-through font-light">
+                          {selectedProduct.metadata.originalPrice}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3">
+                    <Button 
+                      onClick={() => {
+                        handleAddToCart(selectedProduct)
+                        setShowDetailsModal(false)
+                      }}
+                      className="flex-1 bg-black hover:bg-gray-900 text-white py-6 text-sm tracking-[0.1em] uppercase font-light"
+                    >
+                      <ShoppingBag className="h-4 w-4 mr-2" />
+                      Add to Cart
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => handleToggleWishlist(selectedProduct)}
+                      className="w-14 h-14 border-gray-200 hover:bg-gray-50"
+                    >
+                      <Heart 
+                        className={`h-5 w-5 transition-colors ${
+                          isInWishlist(selectedProduct.id) 
+                            ? 'text-red-500 fill-current' 
+                            : 'text-gray-600'
+                        }`} 
+                      />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   )
 }
