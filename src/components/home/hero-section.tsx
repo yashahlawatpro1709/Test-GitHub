@@ -346,15 +346,27 @@ export function HeroSection() {
                 className="relative h-full flex items-center justify-center"
               >
                 <div className="relative w-full max-w-2xl h-[500px] lg:h-[600px]">
-                  {/* Main Image with Luxury Frame */}
+                  {/* Main Image/Video with Luxury Frame */}
                   <div className="relative w-full h-full">
-                    <Image
-                      src={currentSlideData.mainImage}
-                      alt={currentSlideData.title}
-                      fill
-                      className="object-cover"
-                      priority
-                    />
+                    {currentSlideData.mainImage.match(/\.(mp4|webm|mov|avi)$/i) ? (
+                      <video
+                        src={currentSlideData.mainImage}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        preload="auto"
+                        className="w-full h-full object-contain bg-black"
+                      />
+                    ) : (
+                      <Image
+                        src={currentSlideData.mainImage}
+                        alt={currentSlideData.title}
+                        fill
+                        className="object-cover"
+                        priority
+                      />
+                    )}
                     
                     {/* Luxury Frame Effect */}
                     <div className="absolute inset-0 border-4 border-white shadow-2xl"></div>

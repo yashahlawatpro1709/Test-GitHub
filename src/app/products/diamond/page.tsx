@@ -145,10 +145,15 @@ export default function DiamondPage() {
   const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlistStore()
 
   const handleAddToCart = (product: any) => {
+    const priceValue = product.metadata?.price || product.price || '0'
+    const price = typeof priceValue === 'string' 
+      ? parseFloat(priceValue.replace(/[^0-9.]/g, '')) 
+      : parseFloat(priceValue.toString())
+    
     const productData = {
       id: product.id,
       name: product.title || product.name,
-      price: parseFloat((product.metadata?.price || product.price).toString().replace(/[^0-9.]/g, '')),
+      price: price,
       images: [product.url || product.image],
       slug: product.id,
     } as any
@@ -159,6 +164,11 @@ export default function DiamondPage() {
     if (isInWishlist(product.id)) {
       removeFromWishlist(product.id)
     } else {
+      const priceValue = product.metadata?.price || product.price || '0'
+      const price = typeof priceValue === 'string' 
+        ? parseFloat(priceValue.replace(/[^0-9.]/g, '')) 
+        : parseFloat(priceValue.toString())
+      
       const wishlistData = {
         id: product.id,
         productId: product.id,
@@ -167,7 +177,7 @@ export default function DiamondPage() {
           images: [product.url || product.image],
           slug: product.id,
         },
-        price: parseFloat((product.metadata?.price || product.price).toString().replace(/[^0-9.]/g, '')),
+        price: price,
         addedAt: new Date()
       } as any
       addToWishlist(wishlistData)
@@ -477,14 +487,26 @@ export default function DiamondPage() {
                     </span>
                   </div>
 
-                  {/* Product Image */}
+                  {/* Product Image/Video */}
                   <div className={viewMode === 'grid' ? "relative h-80 overflow-hidden" : "relative w-64 h-64 flex-shrink-0 overflow-hidden"}>
-                    <Image
-                      src={product.url || product.image}
-                      alt={product.title || product.name}
-                      fill
-                      className="object-cover group-hover:scale-110 transition-transform duration-700"
-                    />
+                    {(product.url || product.image).match(/\.(mp4|webm|mov|avi)$/i) ? (
+                      <video
+                        src={product.url || product.image}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        preload="auto"
+                        className="w-full h-full object-contain bg-black"
+                      />
+                    ) : (
+                      <Image
+                        src={product.url || product.image}
+                        alt={product.title || product.name}
+                        fill
+                        className="object-cover group-hover:scale-110 transition-transform duration-700"
+                      />
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     
                     {/* Diamond sparkle effect */}
@@ -692,15 +714,27 @@ export default function DiamondPage() {
               </button>
 
               <div className="grid md:grid-cols-2 overflow-y-auto max-h-[90vh]">
-                {/* Left Side - Product Image */}
+                {/* Left Side - Product Image/Video */}
                 <div className="relative bg-gradient-to-br from-slate-50 to-white p-12 flex items-center justify-center border-r border-gray-100">
                   <div className="relative w-full aspect-square">
-                    <Image
-                      src={selectedProduct.url || selectedProduct.image}
-                      alt={selectedProduct.title || selectedProduct.name}
-                      fill
-                      className="object-contain"
-                    />
+                    {(selectedProduct.url || selectedProduct.image).match(/\.(mp4|webm|mov|avi)$/i) ? (
+                      <video
+                        src={selectedProduct.url || selectedProduct.image}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        preload="auto"
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <Image
+                        src={selectedProduct.url || selectedProduct.image}
+                        alt={selectedProduct.title || selectedProduct.name}
+                        fill
+                        className="object-contain"
+                      />
+                    )}
                   </div>
                   {/* Decorative Corner Elements */}
                   <div className="absolute top-8 left-8 w-12 h-12 border-l border-t border-gray-200"></div>

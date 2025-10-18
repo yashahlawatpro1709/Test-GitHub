@@ -28,6 +28,37 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate file type (images and videos)
+    const allowedTypes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif',
+      'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'
+    ]
+    
+    if (!allowedTypes.includes(file.type)) {
+      return NextResponse.json(
+        { 
+          error: 'Invalid file type', 
+          details: `Only images (JPG, PNG, WebP, GIF) and videos (MP4, WebM, MOV, AVI) are allowed. Received: ${file.type}`,
+          hint: 'Please upload a valid image or video file'
+        },
+        { status: 400 }
+      )
+    }
+
+    // Check file size (max 50MB for videos, 10MB for images)
+    const maxSize = file.type.startsWith('video/') ? 50 * 1024 * 1024 : 10 * 1024 * 1024
+    if (file.size > maxSize) {
+      const maxSizeMB = file.type.startsWith('video/') ? 50 : 10
+      return NextResponse.json(
+        { 
+          error: 'File too large', 
+          details: `File size exceeds ${maxSizeMB}MB limit`,
+          hint: `Please upload a ${file.type.startsWith('video/') ? 'video' : 'image'} smaller than ${maxSizeMB}MB`
+        },
+        { status: 400 }
+      )
+    }
+
     // Convert file to buffer
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)

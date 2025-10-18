@@ -227,22 +227,29 @@ export default function AdminDashboard() {
   }
 
   const handleFileUpload = async (imageKey: string, file: File) => {
-    // Validate file type
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    // Validate file type - accept images and videos
+    const validTypes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif',
+      'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'
+    ]
     if (!validTypes.includes(file.type)) {
       toast({
         title: 'Invalid file type',
-        description: 'Please upload JPG, PNG, or WebP images only. SVG files are not recommended for collections.',
+        description: 'Please upload JPG, PNG, WebP, GIF images or MP4, WebM, MOV, AVI videos.',
         variant: 'destructive',
       })
       return
     }
 
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
+    // Validate file size (max 50MB for videos, 10MB for images)
+    const isVideo = file.type.startsWith('video/')
+    const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024
+    const maxSizeMB = isVideo ? 50 : 10
+    
+    if (file.size > maxSize) {
       toast({
         title: 'File too large',
-        description: 'Please upload images smaller than 10MB',
+        description: `Please upload ${isVideo ? 'videos' : 'images'} smaller than ${maxSizeMB}MB`,
         variant: 'destructive',
       })
       return
@@ -250,7 +257,7 @@ export default function AdminDashboard() {
 
     setUploading(imageKey)
     try {
-      // Upload to Cloudinary
+      // Upload file (image or video)
       const formData = new FormData()
       formData.append('file', file)
       formData.append('folder', `aashni/${selectedSection}`)
@@ -333,11 +340,11 @@ export default function AdminDashboard() {
       if (saveResponse.ok) {
         toast({
           title: 'Success',
-          description: 'Image uploaded successfully',
+          description: `${isVideo ? 'Video' : 'Image'} uploaded successfully`,
         })
         loadImages()
       } else {
-        throw new Error(saveData.error || 'Failed to save image')
+        throw new Error(saveData.error || `Failed to save ${isVideo ? 'video' : 'image'}`)
       }
     } catch (error: any) {
       toast({
@@ -1475,15 +1482,23 @@ export default function AdminDashboard() {
                       </div>
                     )}
 
-                    {/* Image Preview */}
+                    {/* Image/Video Preview */}
                     <div className="aspect-video bg-slate-100 border border-amber-200/60 rounded-lg overflow-hidden relative">
                       {existingImage ? (
-                        <Image
-                          src={existingImage.url}
-                          alt={existingImage.alt || imageKey}
-                          fill
-                          className="object-cover"
-                        />
+                        existingImage.url.match(/\.(mp4|webm|mov|avi)$/i) ? (
+                          <video
+                            src={existingImage.url}
+                            controls
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Image
+                            src={existingImage.url}
+                            alt={existingImage.alt || imageKey}
+                            fill
+                            className="object-cover"
+                          />
+                        )
                       ) : (
                         <div className="flex items-center justify-center h-full">
                           <ImageIcon className="w-12 h-12 text-slate-300" />
@@ -1495,7 +1510,7 @@ export default function AdminDashboard() {
                     <div className="space-y-2">
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/*,video/mp4,video/webm,video/quicktime,video/x-msvideo"
                         id={`upload-${imageKey}`}
                         className="hidden"
                         onChange={(e) => {
@@ -1521,7 +1536,7 @@ export default function AdminDashboard() {
                           ) : (
                             <>
                               <Upload className="w-4 h-4 mr-2" />
-                              {existingImage ? 'Replace Image' : 'Upload Image'}
+                              {existingImage ? 'Replace Image/Video' : 'Upload Image/Video'}
                             </>
                           )}
                         </Button>
