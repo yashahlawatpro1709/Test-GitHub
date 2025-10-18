@@ -4819,6 +4819,10 @@ h1, h2, h3, h4, h5, h6 {
   animation-delay: 500ms;
 }
 
+.running {
+  animation-play-state: running;
+}
+
 /* Removed external Google Fonts imports to allow offline builds.
    Tailwind font families (playfair, inter, montserrat) will fallback
    to system fonts unless local fonts are provided. */
