@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
+import { put } from '@vercel/blob'
 import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
 
-// Check if Cloudinary is configured with real values (not placeholders)
-function isCloudinaryConfigured() {
-  return !!(
-    process.env.CLOUDINARY_CLOUD_NAME &&
-    process.env.CLOUDINARY_API_KEY &&
-    process.env.CLOUDINARY_API_SECRET &&
-    process.env.CLOUDINARY_CLOUD_NAME !== 'your-cloud-name' &&
-    process.env.CLOUDINARY_API_KEY !== 'your-api-key' &&
-    process.env.CLOUDINARY_API_SECRET !== 'your-api-secret'
-  )
+// Check if we're running in production/Vercel
+function isProduction() {
+  return process.env.VERCEL === '1' || process.env.NODE_ENV === 'production'
 }
 
 export async function POST(request: NextRequest) {
@@ -38,30 +32,26 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    // Use Cloudinary if configured, otherwise save locally
-    if (isCloudinaryConfigured()) {
-      // Upload to Cloudinary
-      const { v2: cloudinary } = await import('cloudinary')
-      cloudinary.config({
-        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-        api_key: process.env.CLOUDINARY_API_KEY,
-        api_secret: process.env.CLOUDINARY_API_SECRET,
-      })
+    // Generate unique filename
+    const timestamp = Date.now()
+    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+    const filename = `${timestamp}-${sanitizedName}`
+    const pathname = `${folder}/${filename}`
 
-      const base64 = buffer.toString('base64')
-      const dataURI = `data:${file.type};base64,${base64}`
-
-      const result = await cloudinary.uploader.upload(dataURI, {
-        folder: `${folder}`,
-        resource_type: 'auto',
+    // Use Vercel Blob in production, local storage in development
+    if (isProduction() && process.env.BLOB_READ_WRITE_TOKEN) {
+      // Upload to Vercel Blob Storage
+      const blob = await put(pathname, buffer, {
+        access: 'public',
+        contentType: file.type,
       })
 
       return NextResponse.json({
         success: true,
-        url: result.secure_url,
-        publicId: result.public_id,
-        width: result.width,
-        height: result.height,
+        url: blob.url,
+        publicId: filename,
+        width: null,
+        height: null,
       })
     } else {
       // Save locally
@@ -89,11 +79,14 @@ export async function POST(request: NextRequest) {
     }
   } catch (error: any) {
     console.error('Upload error:', error)
+    
     return NextResponse.json(
       { 
         error: 'Upload failed', 
         details: error.message || 'Unknown error',
-        hint: 'Please check Cloudinary credentials in .env.local'
+        hint: isProduction() 
+          ? 'Please ensure BLOB_READ_WRITE_TOKEN is set in Vercel environment variables'
+          : 'Local upload failed. Check file permissions.'
       },
       { status: 500 }
     )

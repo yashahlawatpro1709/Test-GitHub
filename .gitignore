@@ -18,3 +18,6 @@ build/
 .DS_Store
 Thumbs.db
 /public/uploads
+
+# Credentials (contains secrets - do not commit!)
+YOUR_CLOUDINARY_CREDENTIALS.md
