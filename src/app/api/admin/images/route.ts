@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     const images = await prisma.siteImage.findMany({
       where: section ? { section } : undefined,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { imageKey: 'asc' },
     })
 
     return NextResponse.json({ images })
