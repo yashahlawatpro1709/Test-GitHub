@@ -194,10 +194,12 @@ const defaultFeaturedProducts = [
   }
 ]
 
+type FeaturedProduct = typeof defaultFeaturedProducts[number]
+
 export function ProductShowcase() {
   const { addItem: addToCart } = useCartStore()
   const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlistStore()
-  const [featuredProducts, setFeaturedProducts] = useState(defaultFeaturedProducts)
+  const [featuredProducts, setFeaturedProducts] = useState<FeaturedProduct[]>(defaultFeaturedProducts)
 
   // Fetch uploaded products from database
   useEffect(() => {
@@ -211,11 +213,17 @@ export function ProductShowcase() {
             'Pragma': 'no-cache'
           }
         })
-        const data = await response.json()
+        const data: { images: ProductImage[] } = await response.json()
         
         if (data.images && data.images.length > 0) {
+          // Sort by numeric suffix in imageKey to match dashboard order
+          const sortedImages: ProductImage[] = [...data.images].sort((a: ProductImage, b: ProductImage) => {
+            const ai = parseInt((a.imageKey.match(/(\d+)/)?.[1] || '0'), 10)
+            const bi = parseInt((b.imageKey.match(/(\d+)/)?.[1] || '0'), 10)
+            return ai - bi
+          })
           // Transform uploaded images to product format
-          const uploadedProducts = data.images.map((img: ProductImage, index: number) => {
+          const uploadedProducts: FeaturedProduct[] = sortedImages.map((img: ProductImage, index: number) => {
             const defaultProduct = defaultFeaturedProducts[index % defaultFeaturedProducts.length]
             const tags = img.metadata?.tags ? img.metadata.tags.split(',').map((t: string) => t.trim()) : []
             
@@ -225,7 +233,7 @@ export function ProductShowcase() {
               name: img.title || defaultProduct.name,
               description: img.metadata?.jewelryDetail || defaultProduct.description,
               price: img.metadata?.discountedPrice ? parseFloat(img.metadata.discountedPrice.replace(/[^0-9.]/g, '')) : defaultProduct.price,
-              originalPrice: img.metadata?.originalPrice ? parseFloat(img.metadata.originalPrice.replace(/[^0-9.]/g, '')) : defaultProduct.originalPrice,
+              originalPrice: img.metadata?.originalPrice ? parseFloat(img.metadata.originalPrice.replace(/[^0-9.]/g, '')) : (defaultProduct.originalPrice ?? defaultProduct.price),
               images: [{
                 id: img.id,
                 url: img.url,
@@ -241,26 +249,25 @@ export function ProductShowcase() {
                 weight: img.metadata?.jewelryDetail?.split('•')[1] ? parseFloat(img.metadata.jewelryDetail.split('•')[1].replace(/[^0-9.]/g, '')) : defaultProduct.specifications.weight,
                 occasion: tags.length > 0 ? tags : defaultProduct.specifications.occasion
               }
-            }
+            } as FeaturedProduct
           })
           
           setFeaturedProducts(uploadedProducts)
-          console.log('Loaded products from database:', uploadedProducts)
         }
-      } catch (error) {
-        console.error('Failed to fetch products:', error)
+      } catch {
+        toast.error('Failed to load new arrivals')
       }
     }
 
     fetchProducts()
   }, [])
 
-  const handleAddToCart = (product: typeof defaultFeaturedProducts[0]) => {
+  const handleAddToCart = (product: FeaturedProduct) => {
     addToCart(product)
     toast.success('Added to cart!')
   }
 
-  const handleToggleWishlist = (product: typeof defaultFeaturedProducts[0]) => {
+  const handleToggleWishlist = (product: FeaturedProduct) => {
     if (isInWishlist(product.id)) {
       removeFromWishlist(product.id)
       toast.success('Removed from wishlist')
@@ -386,11 +393,6 @@ export function ProductShowcase() {
                   
                   {/* Badges */}
                   <div className="absolute top-4 left-4 flex flex-col gap-2">
-                    {product.originalPrice && (
-                      <div className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold">
-                        {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% OFF
-                      </div>
-                    )}
                     {product.tags.includes('bestseller') && (
                       <div className="bg-champagne-gold text-white px-2 py-1 rounded text-xs font-bold">
                         Bestseller
@@ -399,11 +401,6 @@ export function ProductShowcase() {
                     {product.tags.includes('new') && (
                       <div className="bg-emerald text-white px-2 py-1 rounded text-xs font-bold">
                         New
-                      </div>
-                    )}
-                    {product.inventory.isLowStock && (
-                      <div className="bg-orange-500 text-white px-2 py-1 rounded text-xs font-bold">
-                        Low Stock
                       </div>
                     )}
                   </div>

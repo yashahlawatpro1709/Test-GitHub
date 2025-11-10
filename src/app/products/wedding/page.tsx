@@ -330,7 +330,7 @@ const ProductImageGallery = ({ images, productName }: { images: string[], produc
               key={index}
               onClick={() => setCurrentImage(index)}
               className={`relative w-16 h-16 rounded-lg overflow-hidden border-2 ${
-                index === currentImage ? 'border-rose-500' : 'border-gray-200'
+                index === currentImage ? 'border-[#C3A170]' : 'border-gray-200'
               }`}
             >
               <Image
@@ -382,7 +382,7 @@ export default function WeddingJewelryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 to-pink-50">
+    <div className="min-h-screen bg-gradient-to-br from-[#F6F4EE] to-[#EFEDE7]">
       {/* Hero Section */}
       <section className="py-8 px-4">
         <div className="max-w-7xl mx-auto">
@@ -391,10 +391,10 @@ export default function WeddingJewelryPage() {
           {/* Trust Indicators */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[
-              { icon: <Shield className="w-8 h-8 text-rose-600" />, text: "Lifetime Warranty" },
-              { icon: <Truck className="w-8 h-8 text-rose-600" />, text: "Free Shipping" },
-              { icon: <Award className="w-8 h-8 text-rose-600" />, text: "Certified Jewelry" },
-              { icon: <Clock className="w-8 h-8 text-rose-600" />, text: "Quick Delivery" }
+              { icon: <Shield className="w-8 h-8 text-[#C3A170]" />, text: "Lifetime Warranty" },
+              { icon: <Truck className="w-8 h-8 text-[#C3A170]" />, text: "Free Shipping" },
+              { icon: <Award className="w-8 h-8 text-[#C3A170]" />, text: "Certified Jewelry" },
+              { icon: <Clock className="w-8 h-8 text-[#C3A170]" />, text: "Quick Delivery" }
             ].map((item, index) => (
               <motion.div
                 key={index}
@@ -477,7 +477,7 @@ export default function WeddingJewelryPage() {
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-gray-200 hover:border-rose-300 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-gray-200 hover:border-[#C3A170] transition-colors"
               >
                 <Filter className="w-5 h-5" />
                 Filters
@@ -485,13 +485,13 @@ export default function WeddingJewelryPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-rose-600 text-white' : 'bg-white text-gray-600'}`}
+                  className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-[#C3A170] text-white' : 'bg-white text-gray-600'}`}
                 >
                   <Grid className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-rose-600 text-white' : 'bg-white text-gray-600'}`}
+                  className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-[#C3A170] text-white' : 'bg-white text-gray-600'}`}
                 >
                   <List className="w-5 h-5" />
                 </button>
@@ -629,17 +629,17 @@ export default function WeddingJewelryPage() {
                   {/* Badges */}
                   <div className="absolute top-3 left-3 flex flex-col gap-2">
                     {product.isExclusive && (
-                      <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded-full font-medium">
+                      <span className="bg-[#C3A170] text-white text-xs px-2 py-1 rounded-full font-medium">
                         Exclusive
                       </span>
                     )}
                     {product.isBestseller && (
-                      <span className="bg-orange-500 text-white text-xs px-2 py-1 rounded-full font-medium">
+                      <span className="bg-[#C3A170] text-white text-xs px-2 py-1 rounded-full font-medium">
                         Bestseller
                       </span>
                     )}
                     {product.isNew && (
-                      <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full font-medium">
+                      <span className="bg-[#C3A170] text-white text-xs px-2 py-1 rounded-full font-medium">
                         New
                       </span>
                     )}
@@ -649,14 +649,14 @@ export default function WeddingJewelryPage() {
                   <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => openQuickView(product)}
-                      className="p-2 bg-white rounded-full shadow-md hover:bg-rose-50 transition-colors"
+                      className="p-2 bg-white rounded-full shadow-md hover:bg-[#F6F4EE] transition-colors"
                     >
                       <Eye className="w-4 h-4 text-gray-600" />
                     </button>
-                    <button className="p-2 bg-white rounded-full shadow-md hover:bg-rose-50 transition-colors">
+                    <button className="p-2 bg-white rounded-full shadow-md hover:bg-[#F6F4EE] transition-colors">
                       <Heart className="w-4 h-4 text-gray-600" />
                     </button>
-                    <button className="p-2 bg-white rounded-full shadow-md hover:bg-rose-50 transition-colors">
+                    <button className="p-2 bg-white rounded-full shadow-md hover:bg-[#F6F4EE] transition-colors">
                       <Share2 className="w-4 h-4 text-gray-600" />
                     </button>
                   </div>
@@ -665,10 +665,10 @@ export default function WeddingJewelryPage() {
                   <div className="absolute bottom-3 left-3">
                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                       product.availability === 'in-stock' 
-                        ? 'bg-green-100 text-green-800'
+                        ? 'bg-[#F6F4EE] text-gray-800'
                         : product.availability === 'limited'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-blue-100 text-blue-800'
+                        ? 'bg-[#F6F4EE] text-gray-800'
+                        : 'bg-[#F6F4EE] text-gray-800'
                     }`}>
                       {product.availability === 'in-stock' ? 'In Stock' : 
                        product.availability === 'limited' ? 'Limited' : 'Pre-order'}
@@ -684,7 +684,7 @@ export default function WeddingJewelryPage() {
                           key={i}
                           className={`w-4 h-4 ${
                             i < Math.floor(product.rating)
-                              ? 'text-yellow-400 fill-current'
+                              ? 'text-[#C3A170] fill-current'
                               : 'text-gray-300'
                           }`}
                         />
@@ -699,11 +699,11 @@ export default function WeddingJewelryPage() {
 
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-2xl font-bold text-gray-800">
-                      ₹{product.price.toLocaleString()}
+                      ₹{product.price.toLocaleString('en-IN')}
                     </span>
                     {product.originalPrice && (
                       <span className="text-lg text-gray-500 line-through">
-                        ₹{product.originalPrice.toLocaleString()}
+                        ₹{product.originalPrice.toLocaleString('en-IN')}
                       </span>
                     )}
                   </div>
@@ -733,7 +733,7 @@ export default function WeddingJewelryPage() {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      className="flex-1 bg-rose-600 text-white py-2 px-4 rounded-xl font-medium hover:bg-rose-700 transition-colors flex items-center justify-center gap-2"
+                      className="flex-1 bg-[#C3A170] text-white py-2 px-4 rounded-xl font-medium hover:bg-[#B89257] transition-colors flex items-center justify-center gap-2"
                     >
                       <ShoppingBag className="w-4 h-4" />
                       Add to Cart
@@ -741,14 +741,14 @@ export default function WeddingJewelryPage() {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      className="p-2 border-2 border-rose-600 text-rose-600 rounded-xl hover:bg-rose-600 hover:text-white transition-colors"
+                      className="p-2 border-2 border-[#C3A170] text-[#C3A170] rounded-xl hover:bg-[#C3A170] hover:text-white transition-colors"
                     >
                       <Phone className="w-4 h-4" />
                     </motion.button>
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      className="p-2 border-2 border-rose-600 text-rose-600 rounded-xl hover:bg-rose-600 hover:text-white transition-colors"
+                      className="p-2 border-2 border-[#C3A170] text-[#C3A170] rounded-xl hover:bg-[#C3A170] hover:text-white transition-colors"
                     >
                       <MessageCircle className="w-4 h-4" />
                     </motion.button>
@@ -887,22 +887,22 @@ export default function WeddingJewelryPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
               {
-                icon: <Crown className="w-12 h-12 text-rose-600" />,
+                icon: <Crown className="w-12 h-12 text-[#C3A170]" />,
                 title: "Bridal Consultation",
                 description: "Personal styling session with our bridal experts"
               },
               {
-                icon: <Sparkles className="w-12 h-12 text-rose-600" />,
+                icon: <Sparkles className="w-12 h-12 text-[#C3A170]" />,
                 title: "Custom Design",
                 description: "Create unique pieces tailored to your vision"
               },
               {
-                icon: <Gift className="w-12 h-12 text-rose-600" />,
+                icon: <Gift className="w-12 h-12 text-[#C3A170]" />,
                 title: "Gift Registry",
                 description: "Curated registry for your wedding guests"
               },
               {
-                icon: <Shield className="w-12 h-12 text-rose-600" />,
+                icon: <Shield className="w-12 h-12 text-[#C3A170]" />,
                 title: "Lifetime Care",
                 description: "Cleaning, maintenance, and warranty services"
               }
@@ -913,7 +913,7 @@ export default function WeddingJewelryPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: index * 0.1 }}
                 viewport={{ once: true }}
-                className="text-center p-6 rounded-2xl hover:bg-rose-50 transition-colors"
+                className="text-center p-6 rounded-2xl hover:bg-[#C3A170] transition-colors"
               >
                 <div className="mb-4 flex justify-center">{service.icon}</div>
                 <h3 className="text-xl font-semibold text-gray-800 mb-3">{service.title}</h3>
@@ -925,7 +925,7 @@ export default function WeddingJewelryPage() {
       </section>
 
       {/* Newsletter */}
-      <section className="py-16 bg-gradient-to-r from-rose-600 to-pink-600">
+      <section className="py-16 bg-gradient-to-r from-[#F6F4EE] to-[#EFEDE7]">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -933,22 +933,22 @@ export default function WeddingJewelryPage() {
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
               Stay Updated with Wedding Trends
             </h2>
-            <p className="text-xl text-rose-100 mb-8">
+            <p className="text-xl text-gray-600 mb-8">
               Get exclusive access to new collections and wedding jewelry tips
             </p>
             <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
               <input
                 type="email"
                 placeholder="Enter your email"
-                className="flex-1 px-6 py-3 rounded-xl border-0 focus:ring-2 focus:ring-white focus:outline-none"
+                className="flex-1 px-6 py-3 rounded-xl border-0 focus:ring-2 focus:ring-[#C3A170] focus:outline-none"
               />
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="px-8 py-3 bg-white text-rose-600 rounded-xl font-medium hover:bg-rose-50 transition-colors"
+                className="px-8 py-3 bg-[#C3A170] text-white rounded-xl font-medium hover:bg-[#B89257] transition-colors"
               >
                 Subscribe
               </motion.button>
@@ -1001,7 +1001,7 @@ export default function WeddingJewelryPage() {
                             key={i}
                             className={`w-5 h-5 ${
                               i < Math.floor(quickViewProduct.rating)
-                                ? 'text-yellow-400 fill-current'
+                                ? 'text-[#C3A170] fill-current'
                                 : 'text-gray-300'
                             }`}
                           />
@@ -1014,11 +1014,11 @@ export default function WeddingJewelryPage() {
                     
                     <div className="flex items-center gap-4 mb-6">
                       <span className="text-3xl font-bold text-gray-800">
-                        ₹{quickViewProduct.price.toLocaleString()}
+                        ₹{quickViewProduct.price.toLocaleString('en-IN')}
                       </span>
                       {quickViewProduct.originalPrice && (
                         <span className="text-xl text-gray-500 line-through">
-                          ₹{quickViewProduct.originalPrice.toLocaleString()}
+                          ₹{quickViewProduct.originalPrice.toLocaleString('en-IN')}
                         </span>
                       )}
                     </div>
@@ -1030,7 +1030,7 @@ export default function WeddingJewelryPage() {
                       <ul className="space-y-2">
                         {quickViewProduct.features.map((feature, index) => (
                           <li key={index} className="flex items-center gap-2">
-                            <CheckCircle className="w-4 h-4 text-green-500" />
+                            <CheckCircle className="w-4 h-4 text-[#C3A170]" />
                             <span className="text-gray-600">{feature}</span>
                           </li>
                         ))}
@@ -1041,7 +1041,7 @@ export default function WeddingJewelryPage() {
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        className="flex-1 bg-rose-600 text-white py-3 px-6 rounded-xl font-medium hover:bg-rose-700 transition-colors flex items-center justify-center gap-2"
+                        className="flex-1 bg-[#C3A170] text-white py-3 px-6 rounded-xl font-medium hover:bg-[#a08451] transition-colors flex items-center justify-center gap-2"
                       >
                         <ShoppingBag className="w-5 h-5" />
                         Add to Cart
@@ -1049,7 +1049,7 @@ export default function WeddingJewelryPage() {
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        className="p-3 border-2 border-rose-600 text-rose-600 rounded-xl hover:bg-rose-600 hover:text-white transition-colors"
+                        className="p-3 border-2 border-[#C3A170] text-[#C3A170] rounded-xl hover:bg-[#C3A170] hover:text-white transition-colors"
                       >
                         <Heart className="w-5 h-5" />
                       </motion.button>

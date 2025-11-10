@@ -26,6 +26,7 @@ interface ImageMetadata {
   [key: string]: {
     title: string
     description: string
+    fullDescription?: string
     jewelryDetail?: string
     originalPrice?: string
     discountedPrice?: string
@@ -63,13 +64,12 @@ const PAGE_CATEGORIES = [
     name: 'Main Page',
     description: 'Homepage Sections',
     sections: [
-      { id: 'hero', name: 'Hero Section Images', keys: Array.from({ length: 12 }, (_, i) => `slide-${i + 1}`), allowAdd: false, hasHeroText: true },
+      { id: 'hero', name: 'Hero Section Images', keys: [], allowAdd: true, defaultCount: 12, hasHeroText: true },
       { id: 'featured-collections', name: 'Featured Collections', keys: [], allowAdd: true, defaultCount: 6 },
       { id: 'new-arrivals', name: 'New Arrivals', keys: [], allowAdd: true, defaultCount: 6, hasProductDetails: true },
       { id: 'luxury-jewelry', name: 'Luxury Jewelry (High & Fine)', keys: [], allowAdd: true, defaultCount: 8, hasJewelryDetails: true },
       { id: 'brand-story', name: 'Brand Story', keys: ['main-image'], allowAdd: false },
       { id: 'product-showcase', name: 'Product Showcase', keys: Array.from({ length: 6 }, (_, i) => `product-${i + 1}`), allowAdd: false },
-      { id: 'testimonials', name: 'Testimonials', keys: Array.from({ length: 3 }, (_, i) => `testimonial-${i + 1}`), allowAdd: false },
     ]
   },
   {
@@ -152,6 +152,7 @@ export default function AdminDashboard() {
   const [imageKeys, setImageKeys] = useState<string[]>([])
   const [imageMetadata, setImageMetadata] = useState<ImageMetadata>({})
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; imageId: string | null }>({ show: false, imageId: null })
+  const [dragSourceKey, setDragSourceKey] = useState<string | null>(null)
   
   // Get current page sections
   const currentPageSections = PAGE_CATEGORIES.find(p => p.id === selectedPage)?.sections || []
@@ -192,9 +193,16 @@ export default function AdminDashboard() {
       // For dynamic sections, generate keys based on existing images
       const currentSection = SECTIONS.find(s => s.id === selectedSection)
       if (currentSection?.allowAdd) {
-        const existingKeys = (data.images || []).map((img: SiteImage) => img.imageKey)
+        let existingKeys = (data.images || []).map((img: SiteImage) => img.imageKey)
         const defaultCount = currentSection.defaultCount || 6
-        const prefix = selectedSection === 'new-arrivals' ? 'product' : 'collection'
+        const prefix = selectedSection === 'new-arrivals' ? 'product' : selectedSection === 'hero' ? 'slide' : 'collection'
+        // Normalize numeric order for slide-*, collection-*, and product-* keys
+        if (existingKeys.length > 0 && (prefix === 'slide' || prefix === 'collection' || prefix === 'product')) {
+          existingKeys = existingKeys
+            .map((k: string) => ({ key: k, idx: parseInt((k.match(/(\d+)/)?.[1] || '0'), 10) }))
+            .sort((a: { key: string; idx: number }, b: { key: string; idx: number }) => a.idx - b.idx)
+            .map((item: { key: string; idx: number }) => item.key)
+        }
         const keysToShow = existingKeys.length > 0 
           ? existingKeys 
           : Array.from({ length: defaultCount }, (_, i) => `${prefix}-${i + 1}`)
@@ -211,7 +219,7 @@ export default function AdminDashboard() {
     const currentSection = SECTIONS.find(s => s.id === selectedSection)
     if (currentSection?.allowAdd) {
       const nextNumber = imageKeys.length + 1
-      const prefix = selectedSection === 'new-arrivals' ? 'product' : 'collection'
+      const prefix = selectedSection === 'new-arrivals' ? 'product' : selectedSection === 'hero' ? 'slide' : 'collection'
       const newKey = `${prefix}-${nextNumber}`
       setImageKeys([...imageKeys, newKey])
     }
@@ -300,6 +308,11 @@ export default function AdminDashboard() {
         metadataToSave.additionalOffer = metadata.additionalOffer || null
         metadataToSave.ctaText = metadata.ctaText || null
         metadataToSave.ctaLink = metadata.ctaLink || null
+      }
+
+      // Add full description for featured collections
+      if (selectedSection === 'featured-collections') {
+        metadataToSave.fullDescription = metadata.fullDescription || null
       }
 
       // Add jewelry fields for all jewelry sections
@@ -394,8 +407,8 @@ export default function AdminDashboard() {
       return
     }
 
-    const metadata = imageMetadata[imageKey]
-    if (!metadata?.title && !metadata?.description) {
+    const metadata = imageMetadata[imageKey] || {}
+    if (selectedSection !== 'hero' && !metadata?.title && !metadata?.description) {
       toast({
         title: 'Error',
         description: 'Please enter title or description',
@@ -406,7 +419,7 @@ export default function AdminDashboard() {
 
     try {
       // Prepare metadata
-      const metadataToSave: any = { ...existingImage.metadata }
+      const metadataToSave: any = { ...(existingImage?.metadata || {}) }
       
       // Add product details if this is new-arrivals section
       if (selectedSection === 'new-arrivals') {
@@ -425,6 +438,11 @@ export default function AdminDashboard() {
         metadataToSave.additionalOffer = metadata.additionalOffer || null
         metadataToSave.ctaText = metadata.ctaText || null
         metadataToSave.ctaLink = metadata.ctaLink || null
+      }
+
+      // Add full description for featured collections
+      if (selectedSection === 'featured-collections') {
+        metadataToSave.fullDescription = metadata.fullDescription || null
       }
 
       // Add jewelry fields for all jewelry sections
@@ -475,6 +493,220 @@ export default function AdminDashboard() {
         variant: 'destructive',
       })
     }
+  }
+
+  // Drag-and-drop swap persistence for hero section
+  const persistHeroSwap = async (sourceKey: string, targetKey: string) => {
+    if (selectedSection !== 'hero') return
+
+    const sourceImage = images.find(img => img.imageKey === sourceKey)
+    const targetImage = images.find(img => img.imageKey === targetKey)
+
+    if (!sourceImage && !targetImage) return
+
+    try {
+      if (sourceImage && targetImage) {
+        const swapA = fetch('/api/admin/images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            section: 'hero',
+            imageKey: sourceKey,
+            url: targetImage.url,
+            alt: targetImage.alt,
+            title: targetImage.title || null,
+            description: targetImage.description || null,
+            metadata: targetImage.metadata || null,
+          }),
+        })
+        const swapB = fetch('/api/admin/images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            section: 'hero',
+            imageKey: targetKey,
+            url: sourceImage.url,
+            alt: sourceImage.alt,
+            title: sourceImage.title || null,
+            description: sourceImage.description || null,
+            metadata: sourceImage.metadata || null,
+          }),
+        })
+        const [resA, resB] = await Promise.all([swapA, swapB])
+        if (!resA.ok || !resB.ok) throw new Error('Swap failed')
+      } else if (sourceImage && !targetImage) {
+        const moveRes = await fetch('/api/admin/images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            section: 'hero',
+            imageKey: targetKey,
+            url: sourceImage.url,
+            alt: sourceImage.alt,
+            title: sourceImage.title || null,
+            description: sourceImage.description || null,
+            metadata: sourceImage.metadata || null,
+          }),
+        })
+        if (!moveRes.ok) throw new Error('Move failed')
+        await fetch(`/api/admin/images?id=${sourceImage.id}`, { method: 'DELETE' })
+      } else if (!sourceImage && targetImage) {
+        return
+      }
+
+      toast({ title: 'Reordered', description: 'Hero slides updated' })
+      await loadImages()
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Reorder failed', variant: 'destructive' })
+    }
+  }
+
+  // Drag-and-drop swap persistence for Featured Collections
+  const persistFeaturedSwap = async (sourceKey: string, targetKey: string) => {
+    if (selectedSection !== 'featured-collections') return
+
+    const sourceImage = images.find(img => img.imageKey === sourceKey)
+    const targetImage = images.find(img => img.imageKey === targetKey)
+
+    if (!sourceImage && !targetImage) return
+
+    try {
+      if (sourceImage && targetImage) {
+        const swapA = fetch('/api/admin/images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            section: 'featured-collections',
+            imageKey: sourceKey,
+            url: targetImage.url,
+            alt: targetImage.alt,
+            title: targetImage.title || null,
+            description: targetImage.description || null,
+            metadata: targetImage.metadata || null,
+          }),
+        })
+        const swapB = fetch('/api/admin/images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            section: 'featured-collections',
+            imageKey: targetKey,
+            url: sourceImage.url,
+            alt: sourceImage.alt,
+            title: sourceImage.title || null,
+            description: sourceImage.description || null,
+            metadata: sourceImage.metadata || null,
+          }),
+        })
+        const [resA, resB] = await Promise.all([swapA, swapB])
+        if (!resA.ok || !resB.ok) throw new Error('Swap failed')
+      } else if (sourceImage && !targetImage) {
+        const moveRes = await fetch('/api/admin/images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            section: 'featured-collections',
+            imageKey: targetKey,
+            url: sourceImage.url,
+            alt: sourceImage.alt,
+            title: sourceImage.title || null,
+            description: sourceImage.description || null,
+            metadata: sourceImage.metadata || null,
+          }),
+        })
+        if (!moveRes.ok) throw new Error('Move failed')
+        await fetch(`/api/admin/images?id=${sourceImage.id}`, { method: 'DELETE' })
+      } else if (!sourceImage && targetImage) {
+        return
+      }
+
+      toast({ title: 'Reordered', description: 'Featured collections updated' })
+      await loadImages()
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Reorder failed', variant: 'destructive' })
+    }
+  }
+
+  // Drag-and-drop swap persistence for New Arrivals
+  const persistArrivalsSwap = async (sourceKey: string, targetKey: string) => {
+    if (selectedSection !== 'new-arrivals') return
+
+    const sourceImage = images.find(img => img.imageKey === sourceKey)
+    const targetImage = images.find(img => img.imageKey === targetKey)
+
+    if (!sourceImage && !targetImage) return
+
+    try {
+      if (sourceImage && targetImage) {
+        const swapA = fetch('/api/admin/images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            section: 'new-arrivals',
+            imageKey: sourceKey,
+            url: targetImage.url,
+            alt: targetImage.alt,
+            title: targetImage.title || null,
+            description: targetImage.description || null,
+            metadata: targetImage.metadata || null,
+          }),
+        })
+        const swapB = fetch('/api/admin/images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            section: 'new-arrivals',
+            imageKey: targetKey,
+            url: sourceImage.url,
+            alt: sourceImage.alt,
+            title: sourceImage.title || null,
+            description: sourceImage.description || null,
+            metadata: sourceImage.metadata || null,
+          }),
+        })
+        const [resA, resB] = await Promise.all([swapA, swapB])
+        if (!resA.ok || !resB.ok) throw new Error('Swap failed')
+      } else if (sourceImage && !targetImage) {
+        const moveRes = await fetch('/api/admin/images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            section: 'new-arrivals',
+            imageKey: targetKey,
+            url: sourceImage.url,
+            alt: sourceImage.alt,
+            title: sourceImage.title || null,
+            description: sourceImage.description || null,
+            metadata: sourceImage.metadata || null,
+          }),
+        })
+        if (!moveRes.ok) throw new Error('Move failed')
+        await fetch(`/api/admin/images?id=${sourceImage.id}`, { method: 'DELETE' })
+      } else if (!sourceImage && targetImage) {
+        return
+      }
+
+      toast({ title: 'Reordered', description: 'New Arrivals updated' })
+      await loadImages()
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Reorder failed', variant: 'destructive' })
+    }
+  }
+
+  const handleDragStart = (key: string) => {
+    if (selectedSection === 'hero' || selectedSection === 'featured-collections' || selectedSection === 'new-arrivals') setDragSourceKey(key)
+  }
+
+  const handleDropSwap = (targetKey: string) => {
+    if (!dragSourceKey || dragSourceKey === targetKey) return
+    if (selectedSection === 'hero') {
+      persistHeroSwap(dragSourceKey, targetKey)
+    } else if (selectedSection === 'featured-collections') {
+      persistFeaturedSwap(dragSourceKey, targetKey)
+    } else if (selectedSection === 'new-arrivals') {
+      persistArrivalsSwap(dragSourceKey, targetKey)
+    }
+    setDragSourceKey(null)
   }
 
   const currentSection = SECTIONS.find(s => s.id === selectedSection)
@@ -690,7 +922,7 @@ export default function AdminDashboard() {
               const isUploading = uploading === imageKey
 
               return (
-                <div key={imageKey} className="group relative bg-white border border-amber-200/60 hover:border-amber-400/60 transition-all duration-500 shadow-md shadow-amber-500/5 hover:shadow-lg hover:shadow-amber-500/10 overflow-hidden">
+                <div key={imageKey} className="group relative bg-white border border-amber-200/60 hover:border-amber-400/60 transition-all duration-500 shadow-md shadow-amber-500/5 hover:shadow-lg hover:shadow-amber-500/10 overflow-hidden" draggable={selectedSection === 'hero' || selectedSection === 'featured-collections' || selectedSection === 'new-arrivals'} onDragStart={() => handleDragStart(imageKey)} onDragOver={(e) => { if (selectedSection === 'hero' || selectedSection === 'featured-collections' || selectedSection === 'new-arrivals') e.preventDefault() }} onDrop={() => handleDropSwap(imageKey)}>
                   {/* Subtle corner decoration */}
                   <div className="absolute top-0 right-0 w-16 h-16 border-r border-t border-amber-300/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                   
@@ -718,7 +950,7 @@ export default function AdminDashboard() {
                       )}
                     </div>
 
-                    {/* Title and Description for Featured Collections */}
+                    {/* Title, Short and Full Description for Featured Collections */}
                     {selectedSection === 'featured-collections' && (
                       <div className="space-y-3">
                         <div>
@@ -732,7 +964,8 @@ export default function AdminDashboard() {
                               [imageKey]: {
                                 ...imageMetadata[imageKey],
                                 title: e.target.value,
-                                description: imageMetadata[imageKey]?.description || existingImage?.description || ''
+                                description: imageMetadata[imageKey]?.description || existingImage?.description || '',
+                                fullDescription: imageMetadata[imageKey]?.fullDescription || existingImage?.metadata?.fullDescription || ''
                               }
                             })}
                             className="bg-white border-amber-300 text-slate-900 placeholder:text-slate-400 text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30 transition-all duration-300"
@@ -749,17 +982,36 @@ export default function AdminDashboard() {
                               [imageKey]: {
                                 ...imageMetadata[imageKey],
                                 title: imageMetadata[imageKey]?.title || existingImage?.title || '',
-                                description: e.target.value
+                                description: e.target.value,
+                                fullDescription: imageMetadata[imageKey]?.fullDescription || existingImage?.metadata?.fullDescription || ''
                               }
                             })}
                             className="bg-white border-amber-300 text-slate-900 placeholder:text-slate-400 text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30 transition-all duration-300"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Full Description</label>
+                          <textarea
+                            placeholder="Detailed description for the collection, shown in CTA modal"
+                            rows={4}
+                            value={imageMetadata[imageKey]?.fullDescription || existingImage?.metadata?.fullDescription || ''}
+                            onChange={(e) => setImageMetadata({
+                              ...imageMetadata,
+                              [imageKey]: {
+                                ...imageMetadata[imageKey],
+                                title: imageMetadata[imageKey]?.title || existingImage?.title || '',
+                                description: imageMetadata[imageKey]?.description || existingImage?.description || '',
+                                fullDescription: e.target.value
+                              }
+                            })}
+                            className="w-full bg-white border border-amber-300 rounded-md text-slate-900 placeholder:text-slate-400 text-sm px-3 py-2 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30 transition-all duration-300"
                           />
                         </div>
                       </div>
                     )}
 
                     {/* Hero Text Fields */}
-                    {selectedSection === 'hero' && (
+                    {false && selectedSection === 'hero' && (
                       <div className="space-y-4">
                         <div>
                           <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Slide Title</label>
@@ -1551,7 +1803,7 @@ export default function AdminDashboard() {
                         >
                           <Save className="w-4 h-4 text-white" strokeWidth={2} />
                           <span className="text-sm text-white">
-                            {selectedSection === 'new-arrivals' ? 'Save Product Details' : selectedSection === 'hero' ? 'Save Hero Text' : ['luxury-jewelry', 'gold-jewelry', 'diamond-jewelry', 'earrings', 'rings', 'daily-wear', 'gifting', 'wedding', 'more-collections'].includes(selectedSection) ? 'Save Jewelry Details' : 'Save Title & Description'}
+                            {selectedSection === 'new-arrivals' ? 'Save Product Details' : selectedSection === 'hero' ? 'Save Image' : ['luxury-jewelry', 'gold-jewelry', 'diamond-jewelry', 'earrings', 'rings', 'daily-wear', 'gifting', 'wedding', 'more-collections'].includes(selectedSection) ? 'Save Jewelry Details' : 'Save Title & Description'}
                           </span>
                         </button>
                       )}

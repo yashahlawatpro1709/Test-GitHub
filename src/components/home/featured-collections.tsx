@@ -1,10 +1,10 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowRight, Sparkles, Crown, Diamond } from 'lucide-react'
+import { ArrowRight, Sparkles, Crown, Diamond, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { collections as dataCollections } from '@/data/dummy'
 
@@ -14,11 +14,14 @@ interface CollectionImage {
   title?: string
   description?: string
   imageKey: string
+  metadata?: { fullDescription?: string }
 }
 
 export function FeaturedCollections() {
   const [collections, setCollections] = useState(dataCollections)
   const [loading, setLoading] = useState(true)
+  const [showDetails, setShowDetails] = useState(false)
+  const [activeCollection, setActiveCollection] = useState<any | null>(null)
 
   // Fetch uploaded collection images from database
   useEffect(() => {
@@ -43,6 +46,7 @@ export function FeaturedCollections() {
               slug: img.imageKey || `collection-${index + 1}`,
               title: img.title || defaultCollection.title,
               description: img.description || defaultCollection.description,
+              fullDescription: img.metadata?.fullDescription || img.description || defaultCollection.description,
               banner: img.url,
               categories: defaultCollection.categories
             }
@@ -68,6 +72,16 @@ export function FeaturedCollections() {
 
     fetchCollectionImages()
   }, [])
+
+  const openDetails = (collection: any) => {
+    setActiveCollection(collection)
+    setShowDetails(true)
+  }
+
+  const closeDetails = () => {
+    setShowDetails(false)
+    setActiveCollection(null)
+  }
 
   return (
     <section id="featured-collections" className="py-24 bg-gradient-to-br from-slate-50 via-white to-rose-50/30 relative overflow-hidden">
@@ -181,115 +195,100 @@ export function FeaturedCollections() {
               viewport={{ once: true }}
               className="group relative"
             >
-              <Link href={`/collections/${collection.slug}`}>
-                <div className="relative h-96 lg:h-[450px] rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-slate-100 to-slate-200 group-hover:shadow-3xl transition-all duration-700 group-hover:scale-[1.02]">
-                  {/* Main Image */}
-                  <div className="relative h-full overflow-hidden">
-                    <Image
-                      src={collection.banner}
-                      alt={collection.title}
-                      fill
-                      className="object-cover transition-all duration-1000 group-hover:scale-110 group-hover:rotate-1"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                      unoptimized={collection.banner.startsWith('/uploads') || collection.banner.endsWith('.svg')}
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement
-                        console.error('Image failed to load:', collection.banner)
-                        target.src = 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=1200&h=800&fit=crop&crop=center'
+              <div className="relative h-96 lg:h-[450px] rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-slate-100 to-slate-200 group-hover:shadow-3xl transition-all duration-700 group-hover:scale-[1.02]">
+                {/* Main Image */}
+                <div className="relative h-full overflow-hidden">
+                  <Image
+                    src={collection.banner}
+                    alt={collection.title}
+                    fill
+                    className="object-cover transition-all duration-1000 group-hover:scale-110 group-hover:rotate-1"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    unoptimized={collection.banner.startsWith('/uploads') || collection.banner.endsWith('.svg')}
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement
+                      console.error('Image failed to load:', collection.banner)
+                      target.src = 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=1200&h=800&fit=crop&crop=center'
+                    }}
+                  />
+                  
+                  {/* Gradient Overlays */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent opacity-80 group-hover:opacity-60 transition-opacity duration-500" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-rose-500/20 via-transparent to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  
+                  {/* Shimmer Effect */}
+                  <motion.div
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-0 group-hover:opacity-100"
+                    animate={{ x: ["-100%", "100%"] }}
+                    transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 3 }}
+                  />
+                </div>
+
+                {/* Featured Badge removed */}
+
+                {/* Floating Elements */}
+                <div className="absolute inset-0 pointer-events-none">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <motion.div
+                      key={i}
+                      className="absolute"
+                      style={{
+                        left: `${20 + i * 30}%`,
+                        top: `${20 + i * 20}%`,
                       }}
-                    />
-                    
-                    {/* Gradient Overlays */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent opacity-80 group-hover:opacity-60 transition-opacity duration-500" />
-                    <div className="absolute inset-0 bg-gradient-to-br from-rose-500/20 via-transparent to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                    
-                    {/* Shimmer Effect */}
-                    <motion.div
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-0 group-hover:opacity-100"
-                      animate={{ x: ["-100%", "100%"] }}
-                      transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 3 }}
-                    />
-                  </div>
-
-                  {/* Featured Badge */}
-                  {index < 2 && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0 }}
-                      whileInView={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.5, delay: 0.5 + index * 0.1 }}
-                      viewport={{ once: true }}
-                      className="absolute top-6 right-6 z-10"
-                    >
-                      <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg flex items-center gap-2">
-                        <Sparkles className="w-3 h-3" />
-                        Featured
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {/* Floating Elements */}
-                  <div className="absolute inset-0 pointer-events-none">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <motion.div
-                        key={i}
-                        className="absolute"
-                        style={{
-                          left: `${20 + i * 30}%`,
-                          top: `${20 + i * 20}%`,
-                        }}
-                        animate={{
-                          y: [0, -10, 0],
-                          opacity: [0, 0.6, 0],
-                          scale: [0.8, 1.2, 0.8]
-                        }}
-                        transition={{
-                          duration: 4 + i,
-                          repeat: Infinity,
-                          delay: i * 0.5,
-                          ease: "easeInOut"
-                        }}
+                      animate={{
+                        y: [0, -10, 0],
+                        opacity: [0, 0.6, 0],
+                        scale: [0.8, 1.2, 0.8]
+                      }}
+                      transition={{
+                        duration: 4 + i,
+                        repeat: Infinity,
+                        delay: i * 0.5,
+                        ease: "easeInOut"
+                      }}
                       >
                         <div className="w-2 h-2 bg-white/40 rounded-full blur-sm" />
                       </motion.div>
-                    ))}
-                  </div>
-
-                  {/* Content */}
-                  <div className="absolute bottom-0 left-0 right-0 p-8 text-white z-10">
-                    <motion.h3
-                      className="text-2xl lg:text-3xl font-playfair font-bold mb-3 group-hover:text-yellow-300 transition-colors duration-300"
-                      whileHover={{ scale: 1.05 }}
-                    >
-                      {collection.title}
-                    </motion.h3>
-                    
-                    <motion.p
-                      className="text-white/90 mb-6 text-sm lg:text-base leading-relaxed"
-                      initial={{ opacity: 0.8 }}
-                      whileHover={{ opacity: 1 }}
-                    >
-                      {collection.description}
-                    </motion.p>
-                    
-                    <motion.div
-                      whileHover={{ scale: 1.05, x: 5 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                    >
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="group/btn bg-white/20 backdrop-blur-sm border-white/30 text-white hover:bg-white hover:text-slate-900 transition-all duration-300 rounded-full px-6 py-2"
-                      >
-                        <span className="font-semibold">Explore Collection</span>
-                        <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
-                      </Button>
-                    </motion.div>
-                  </div>
-
-                  {/* Hover Glow Effect */}
-                  <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-rose-400/0 via-pink-400/0 to-purple-400/0 group-hover:from-rose-400/10 group-hover:via-pink-400/10 group-hover:to-purple-400/10 transition-all duration-500 pointer-events-none" />
+                  ))}
                 </div>
-              </Link>
+
+                {/* Content */}
+                <div className="absolute bottom-0 left-0 right-0 p-8 text-white z-10">
+                  <motion.h3
+                    className="text-2xl lg:text-3xl font-playfair font-bold mb-3 group-hover:text-yellow-300 transition-colors duration-300"
+                    whileHover={{ scale: 1.05 }}
+                  >
+                    {collection.title}
+                  </motion.h3>
+                  
+                  <motion.p
+                    className="text-white/90 mb-6 text-sm lg:text-base leading-relaxed"
+                    initial={{ opacity: 0.8 }}
+                    whileHover={{ opacity: 1 }}
+                  >
+                    {collection.description}
+                  </motion.p>
+                  
+                  <motion.div
+                    whileHover={{ scale: 1.05, x: 5 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  >
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => openDetails(collection)}
+                      className="group/btn bg-white/20 backdrop-blur-sm border-white/30 text-white hover:bg-white hover:text-slate-900 transition-all duration-300 rounded-full px-6 py-2"
+                    >
+                      <span className="font-semibold">Full Details</span>
+                      <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
+                    </Button>
+                  </motion.div>
+                </div>
+
+                {/* Hover Glow Effect */}
+                <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-rose-400/0 via-pink-400/0 to-purple-400/0 group-hover:from-rose-400/10 group-hover:via-pink-400/10 group-hover:to-purple-400/10 transition-all duration-500 pointer-events-none" />
+              </div>
             </motion.div>
           ))}
         </div>
@@ -355,6 +354,65 @@ export function FeaturedCollections() {
           </div>
         </motion.div>
       </div>
+
+      {/* Full Details Modal */}
+      <AnimatePresence>
+        {showDetails && activeCollection && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1000] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+              className="relative bg-white rounded-3xl shadow-2xl max-w-5xl w-full overflow-hidden"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b">
+                <h3 className="text-xl font-playfair font-bold text-slate-900">{activeCollection.title}</h3>
+                <button onClick={closeDetails} className="text-slate-700 hover:text-slate-900">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+{/* Content */}
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left: Image */}
+                  <div className="relative w-full h-64 md:h-[420px] rounded-2xl overflow-hidden bg-slate-50 border border-slate-200">
+                    <Image
+                      src={activeCollection.banner}
+                      alt={activeCollection.title}
+                      fill
+                      className="object-cover md:object-contain"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 50vw"
+                      unoptimized={activeCollection.banner?.startsWith('/uploads') || activeCollection.banner?.endsWith('.svg')}
+                      onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                        const target = e.currentTarget as HTMLImageElement
+                        target.src = 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=1200&h=800&fit=crop&crop=center'
+                      }}
+                    />
+                  </div>
+                  {/* Right: Title + Full Description */}
+                  <div className="flex flex-col">
+                    <h4 className="text-lg font-semibold text-slate-900 mb-3">{activeCollection.title}</h4>
+                    <div className="text-slate-700 leading-relaxed whitespace-pre-line max-h-[420px] overflow-y-auto pr-2">
+                      {activeCollection.fullDescription || activeCollection.description}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {/* Footer */}
+              <div className="p-6 border-t flex justify-end">
+                <Button variant="outline" onClick={closeDetails} className="rounded-full">Close</Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   )
 }

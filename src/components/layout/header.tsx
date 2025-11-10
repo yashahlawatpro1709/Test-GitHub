@@ -30,6 +30,12 @@ const navigation = [
     description: 'Brilliant Sparkle'
   },
   { 
+    name: 'Diamond Philosophy', 
+    href: '/philosophy/diamond',
+    icon: Diamond,
+    description: 'Our Diamond Values'
+  },
+  { 
     name: 'Earrings', 
     href: '/products/earrings',
     icon: Sparkles,

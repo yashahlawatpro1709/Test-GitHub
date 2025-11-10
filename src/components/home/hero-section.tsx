@@ -7,64 +7,13 @@ import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import Image from 'next/image'
 
-const defaultHeroSlides = [
-  {
-    id: 1,
-    title: "Exquisite Bridal Heritage",
-    subtitle: "AASHNI",
-    tagline: "MAISON DE HAUTE JOAILLERIE",
-    collection: "RIVAAH",
-    description: "BRIDAL COUTURE COLLECTION",
-    exclusiveOffer: "EXCLUSIVE PREVIEW",
-    discount: "UP TO ₹2,50,000",
-    additionalOffer: "30%",
-    ctaText: "DISCOVER COLLECTION",
-    ctaLink: "/collections/wedding",
-    mainImage: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800&h=600&fit=crop&crop=center",
-    backgroundGradient: "from-rose-50 via-pink-50 to-white",
-    accentColor: "rose",
-    theme: "romantic"
-  },
-  {
-    id: 2,
-    title: "Eternal Brilliance",
-    subtitle: "AASHNI", 
-    tagline: "MAISON DE HAUTE JOAILLERIE",
-    collection: "LUMIÈRE",
-    description: "DIAMOND MASTERPIECES",
-    exclusiveOffer: "PRIVATE COLLECTION",
-    discount: "UP TO ₹5,00,000",
-    additionalOffer: "35%",
-    ctaText: "EXPLORE DIAMONDS",
-    ctaLink: "/collections/diamond",
-    mainImage: "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&h=600&fit=crop&crop=center",
-    backgroundGradient: "from-blue-50 via-indigo-50 to-white",
-    accentColor: "blue",
-    theme: "sophisticated"
-  },
-  {
-    id: 3,
-    title: "Legacy of Craftsmanship",
-    subtitle: "AASHNI",
-    tagline: "MAISON DE HAUTE JOAILLERIE",
-    collection: "HÉRITAGE",
-    description: "ARTISANAL GOLD CREATIONS", 
-    exclusiveOffer: "MASTER COLLECTION",
-    discount: "UP TO ₹3,00,000",
-    additionalOffer: "25%",
-    ctaText: "VIEW HERITAGE",
-    ctaLink: "/collections/gold",
-    mainImage: "https://images.unsplash.com/photo-1599643477877-530eb83abc8e?w=800&h=600&fit=crop&center",
-    backgroundGradient: "from-amber-50 via-yellow-50 to-white",
-    accentColor: "amber",
-    theme: "classic"
-  }
-]
+const defaultHeroSlides: any[] = []
 
 export function HeroSection() {
   const [heroSlides, setHeroSlides] = useState(defaultHeroSlides)
   const [currentSlide, setCurrentSlide] = useState(0)
   const [isAutoPlaying, setIsAutoPlaying] = useState(true)
+  const [mouseX, setMouseX] = useState(0)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // Fetch uploaded images from database
@@ -75,31 +24,43 @@ export function HeroSection() {
         const data = await response.json()
         
         if (data.images && data.images.length > 0) {
-          // Merge uploaded images with default slides
-          const updatedSlides = defaultHeroSlides.map((slide, index) => {
-            const uploadedImage = data.images.find((img: any) => img.imageKey === `slide-${index + 1}`)
-            if (uploadedImage) {
-              return {
-                ...slide,
-                mainImage: uploadedImage.url,
-                title: uploadedImage.title || slide.title,
-                description: uploadedImage.description || slide.description,
-                collection: uploadedImage.metadata?.collection || slide.collection,
-                tagline: uploadedImage.metadata?.tagline || slide.tagline,
-                exclusiveOffer: uploadedImage.metadata?.exclusiveOffer || slide.exclusiveOffer,
-                discount: uploadedImage.metadata?.discount || slide.discount,
-                additionalOffer: uploadedImage.metadata?.additionalOffer || slide.additionalOffer,
-                ctaText: uploadedImage.metadata?.ctaText || slide.ctaText,
-                ctaLink: uploadedImage.metadata?.ctaLink || slide.ctaLink,
-              }
-            }
-            return slide
-          })
-          setHeroSlides(updatedSlides)
+          // Find all slide-* uploads and sort numerically
+          const slideImages = data.images
+            .filter((img: any) => typeof img.imageKey === 'string' && img.imageKey.toLowerCase().startsWith('slide'))
+            .map((img: any) => {
+              const match = img.imageKey.match(/slide[-_]?\s*(\d+)/i)
+              const index = match ? parseInt(match[1], 10) : NaN
+              return { index, img }
+            })
+            .filter(({ index }: any) => Number.isFinite(index))
+            .sort((a: any, b: any) => a.index - b.index)
+
+          // Build slides directly from uploaded images with safe fallbacks
+          const normalizedSlides = slideImages.map(({ index, img }: any) => ({
+            id: index,
+            title: img.title || '',
+            subtitle: img.metadata?.subtitle || '',
+            tagline: img.metadata?.tagline || '',
+            collection: img.metadata?.collection || '',
+            description: img.description || '',
+            exclusiveOffer: img.metadata?.exclusiveOffer || '',
+            discount: img.metadata?.discount || '',
+            additionalOffer: img.metadata?.additionalOffer || '',
+            ctaText: img.metadata?.ctaText || 'Shop Now',
+            ctaLink: img.metadata?.ctaLink || '/collections',
+            mainImage: img.url,
+            backgroundGradient: img.metadata?.backgroundGradient || '',
+            accentColor: img.metadata?.accentColor || '',
+            theme: img.metadata?.theme || 'light',
+          }))
+
+          setHeroSlides(normalizedSlides)
+        } else {
+          setHeroSlides([])
         }
       } catch (error) {
         console.error('Failed to fetch hero images:', error)
-        // Keep using default slides on error
+        setHeroSlides([])
       }
     }
 
@@ -108,7 +69,7 @@ export function HeroSection() {
 
   // Auto-scroll functionality
   useEffect(() => {
-    if (isAutoPlaying) {
+    if (isAutoPlaying && heroSlides.length > 0) {
       intervalRef.current = setInterval(() => {
         setCurrentSlide((prev) => (prev + 1) % heroSlides.length)
       }, 6000)
@@ -119,30 +80,27 @@ export function HeroSection() {
         clearInterval(intervalRef.current)
       }
     }
-  }, [isAutoPlaying])
+  }, [isAutoPlaying, heroSlides.length])
 
   const nextSlide = () => {
     setCurrentSlide((prev) => (prev + 1) % heroSlides.length)
-    setIsAutoPlaying(false)
-    setTimeout(() => setIsAutoPlaying(true), 12000)
   }
 
   const prevSlide = () => {
     setCurrentSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length)
-    setIsAutoPlaying(false)
-    setTimeout(() => setIsAutoPlaying(true), 12000)
   }
 
   const goToSlide = (index: number) => {
     setCurrentSlide(index)
-    setIsAutoPlaying(false)
-    setTimeout(() => setIsAutoPlaying(true), 12000)
   }
 
+  if (heroSlides.length === 0) {
+    return null
+  }
   const currentSlideData = heroSlides[currentSlide]
 
   return (
-    <section className="relative h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-white to-gray-50">
+    <section className="relative w-full h-[460px] md:h-[620px] overflow-hidden bg-white mt-20 md:mt-28">
       {/* Luxury Background Pattern */}
       <div className="absolute inset-0 opacity-5">
         <div className="absolute inset-0" style={{
@@ -154,7 +112,7 @@ export function HeroSection() {
       <AnimatePresence mode="wait">
         <motion.div
           key={currentSlide}
-          className={`absolute inset-0 bg-gradient-to-br ${currentSlideData.backgroundGradient}`}
+          className={`absolute inset-0 bg-transparent`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -162,38 +120,10 @@ export function HeroSection() {
         />
       </AnimatePresence>
 
-      {/* Floating Luxury Elements */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {Array.from({ length: 12 }).map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            }}
-            animate={{
-              y: [0, -30, 0],
-              opacity: [0.1, 0.3, 0.1],
-              scale: [0.8, 1.2, 0.8],
-              rotate: [0, 180, 360]
-            }}
-            transition={{
-              duration: 8 + Math.random() * 6,
-              repeat: Infinity,
-              delay: Math.random() * 8,
-              ease: "easeInOut"
-            }}
-          >
-            <Star className="w-3 h-3 text-gray-300" />
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Main Content Container */}
+      {/* Main Content Container (full-bleed) */}
       <div className="relative z-10 h-full flex items-center">
-        <div className="container mx-auto px-6 sm:px-8 lg:px-12">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center h-full min-h-[700px]">
+        <div className="w-full">
+          <div className="grid grid-cols-1 items-center h-full">
             
             {/* Left Content - Premium Text */}
             <AnimatePresence mode="wait">
@@ -203,7 +133,7 @@ export function HeroSection() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -60 }}
                 transition={{ duration: 1.2, ease: "easeOut" }}
-                className="text-left space-y-8 max-w-xl"
+                className="hidden"
               >
                 {/* Luxury Brand Tagline */}
                 <motion.div
@@ -335,135 +265,127 @@ export function HeroSection() {
               </motion.div>
             </AnimatePresence>
 
-            {/* Right Content - Premium Image */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentSlide}
-                initial={{ opacity: 0, x: 60, scale: 0.95 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, x: 60, scale: 0.95 }}
-                transition={{ duration: 1.4, ease: "easeOut" }}
-                className="relative h-full flex items-center justify-center"
-              >
-                <div className="relative w-full max-w-2xl h-[500px] lg:h-[600px]">
-                  {/* Main Image/Video with Luxury Frame */}
-                  <div className="relative w-full h-full">
-                    {currentSlideData.mainImage.match(/\.(mp4|webm|mov|avi)$/i) ? (
-                      <video
-                        src={currentSlideData.mainImage}
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        preload="auto"
-                        className="w-full h-full object-contain bg-black"
-                      />
-                    ) : (
-                      <Image
-                        src={currentSlideData.mainImage}
-                        alt={currentSlideData.title}
-                        fill
-                        className="object-cover"
-                        priority
-                      />
-                    )}
-                    
-                    {/* Luxury Frame Effect */}
-                    <div className="absolute inset-0 border-4 border-white shadow-2xl"></div>
-                    <div className="absolute -inset-2 border border-gray-200 shadow-xl"></div>
-                    
-                    {/* Premium Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent"></div>
-                  </div>
-                  
-                  {/* Floating Premium Elements */}
-                  <motion.div
-                    className="absolute -top-6 -right-6 w-12 h-12 bg-gradient-to-br from-yellow-300 to-yellow-500 rounded-full shadow-xl flex items-center justify-center"
-                    animate={{ 
-                      y: [0, -15, 0],
-                      rotate: [0, 180, 360],
-                      scale: [1, 1.1, 1]
-                    }}
-                    transition={{ 
-                      duration: 6,
-                      repeat: Infinity,
-                      ease: "easeInOut"
-                    }}
-                  >
-                    <Star className="w-6 h-6 text-white" />
-                  </motion.div>
-                  
-                  <motion.div
-                    className="absolute -bottom-8 -left-8 w-8 h-8 bg-gradient-to-br from-rose-300 to-rose-500 rounded-full shadow-lg"
-                    animate={{ 
-                      y: [0, 20, 0],
-                      scale: [1, 0.9, 1],
-                      opacity: [0.7, 1, 0.7]
-                    }}
-                    transition={{ 
-                      duration: 5,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                      delay: 2
-                    }}
-                  />
+            {/* Center-focused translucent slider track */}
+            <div
+               className="relative w-full h-[460px] md:h-[620px]"
+               onMouseEnter={() => setIsAutoPlaying(false)}
+               onMouseLeave={() => setIsAutoPlaying(true)}
+               onMouseMove={(e) => {
+                 const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
+                 const x = (e.clientX - rect.left) / rect.width // 0..1
+                 setMouseX((x - 0.5) * 2) // -1..1
+               }}
+             >
+               {/* Subtle radial glow behind center slide */}
+               <div className="absolute inset-0 pointer-events-none">
+                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[60%] rounded-full bg-[radial-gradient(ellipse_at_center,_rgba(212,175,55,0.20)_0%,_rgba(212,175,55,0.06)_45%,_transparent_70%)] blur-xl"></div>
+               </div>
+              {heroSlides.map((slide, index) => {
+                const len = heroSlides.length
+                const rel = (index - currentSlide + len) % len
+                const isCenter = rel === 0
+                const isRight = rel === 1
+                const isLeft = rel === len - 1
 
-                  {/* Premium Badge */}
-                  <motion.div
-                    className="absolute top-6 left-6 bg-white/95 backdrop-blur-sm px-4 py-2 shadow-lg"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 1, delay: 1.6 }}
+                const baseX = isCenter ? 0 : isLeft ? -240 : isRight ? 240 : 0
+                 const parallaxX = isCenter ? mouseX * 18 : 0
+                 const x = baseX + parallaxX
+                 const scale = isCenter ? 1.02 : 0.9
+                 const z = isCenter ? 30 : (isLeft || isRight ? 20 : 0)
+                 const opacity = isCenter ? 1 : (isLeft || isRight ? 0.4 : 0)
+ 
+                 return (
+                   <motion.div
+                     key={index}
+                     initial={{ opacity: 0 }}
+                     animate={{ opacity, x, scale, zIndex: z }}
+                     transition={{ duration: 0.8, ease: 'easeOut' }}
+                    className={`absolute inset-0 flex items-center justify-center ${
+                      isCenter ? '' : 'pointer-events-auto'
+                    }`}
+                    onClick={() => {
+                      if (isLeft) prevSlide()
+                      else if (isRight) nextSlide()
+                    }}
+                    aria-hidden={!isCenter}
                   >
-                    <div className="text-xs font-medium text-gray-800 tracking-wider uppercase">
-                      HANDCRAFTED
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      SINCE 1985
+                    <div className="relative w-full h-full">
+                      {String(slide.mainImage).match(/\.(mp4|webm|mov|avi)$/i) ? (
+                        <video
+                          src={slide.mainImage}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          preload="auto"
+                          className={`w-full h-full object-contain ${isCenter ? '' : 'brightness-75'}`}
+                        />
+                      ) : (
+                        <Image
+                          src={slide.mainImage}
+                          alt={slide.title || `Slide ${index + 1}`}
+                          fill
+                          className={`object-contain ${isCenter ? '' : 'opacity-80'} `}
+                          priority={isCenter}
+                          sizes="100vw"
+                          style={{ objectPosition: 'center center' }}
+                        />
+                      )}
+
+                      {/* subtle translucent overlay for side slides */}
+                      {!isCenter && (
+                        <div className="absolute inset-0 bg-white/30"></div>
+                      )}
                     </div>
                   </motion.div>
-                </div>
-              </motion.div>
-            </AnimatePresence>
+                )
+              })}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Premium Navigation Controls */}
-      <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 z-20">
-        <div className="flex items-center gap-4">
+      {/* Navigation Arrows */}
+      <div className="absolute inset-y-0 left-0 right-0 z-40 flex items-center justify-between px-4 md:px-6">
+        <button
+          onClick={prevSlide}
+          aria-label="Previous slide"
+          className="group rounded-full bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-md border border-[#D4AF37]/40 shadow-lg p-2 md:p-3 hover:scale-105 transition-all"
+        >
+          <ChevronLeft className="h-5 w-5 md:h-6 md:w-6 text-[#6B5A2E] group-hover:text-[#3D3118]" />
+        </button>
+        <button
+          onClick={nextSlide}
+          aria-label="Next slide"
+          className="group rounded-full bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-md border border-[#D4AF37]/40 shadow-lg p-2 md:p-3 hover:scale-105 transition-all"
+        >
+          <ChevronRight className="h-5 w-5 md:h-6 md:w-6 text-[#6B5A2E] group-hover:text-[#3D3118]" />
+        </button>
+      </div>
+
+      {/* Navigation Dots */}
+      <div className="absolute bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 z-40 pointer-events-auto">
+        <div className="flex items-center gap-2.5 px-5 py-2 rounded-full bg-white/90 backdrop-blur-md shadow-lg border border-[#D4AF37]/30">
           {heroSlides.map((_, index) => (
             <button
               key={index}
               onClick={() => goToSlide(index)}
-              className={`w-2 h-8 transition-all duration-500 ${
+              aria-label={`Go to slide ${index + 1}`}
+              aria-current={index === currentSlide}
+              className={`w-2.5 h-2.5 rotate-45 transition-all duration-300 focus:outline-none focus:ring-1 focus:ring-[#D4AF37]/60 ${
                 index === currentSlide
-                  ? 'bg-gray-800'
-                  : 'bg-gray-300 hover:bg-gray-500'
+                  ? 'bg-[#D4AF37] ring-1 ring-[#D4AF37]/70 scale-110 shadow-sm'
+                  : 'bg-gray-400/70 hover:bg-gray-600'
               }`}
+              style={{ clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)' }}
             />
           ))}
         </div>
       </div>
 
-      {/* Elegant Side Navigation */}
-      <button
-        onClick={prevSlide}
-        className="absolute left-8 top-1/2 transform -translate-y-1/2 z-20 p-4 bg-white/90 hover:bg-white shadow-xl transition-all duration-500 hover:scale-110 border border-gray-200"
-      >
-        <ChevronLeft className="w-6 h-6 text-gray-800" />
-      </button>
-
-      <button
-        onClick={nextSlide}
-        className="absolute right-8 top-1/2 transform -translate-y-1/2 z-20 p-4 bg-white/90 hover:bg-white shadow-xl transition-all duration-500 hover:scale-110 border border-gray-200"
-      >
-        <ChevronRight className="w-6 h-6 text-gray-800" />
-      </button>
-
       {/* Luxury Brand Signature */}
       <motion.div
-        className="absolute bottom-12 right-12 z-20 text-right"
+        className="absolute bottom-12 right-12 z-20 text-right hidden"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 2, delay: 2 }}
