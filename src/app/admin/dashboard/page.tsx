@@ -39,6 +39,9 @@ interface ImageMetadata {
     additionalOffer?: string
     ctaText?: string
     ctaLink?: string
+    // Featured Collections section-level header fields
+    sectionTitle?: string
+    sectionIntro?: string
     // Luxury jewelry specific fields
     category?: string
     purity?: string
@@ -89,6 +92,14 @@ const PAGE_CATEGORIES = [
     ]
   },
   {
+    id: 'all-jewelry-page',
+    name: 'All Jewellery',
+    description: 'Curated Collection',
+    sections: [
+      { id: 'all-jewelry', name: 'All Jewellery', keys: [], allowAdd: true, defaultCount: 12, hasJewelryDetails: true },
+    ]
+  },
+  {
     id: 'earrings-page',
     name: 'Earrings',
     description: 'Earrings Collection',
@@ -102,6 +113,30 @@ const PAGE_CATEGORIES = [
     description: 'Rings Collection',
     sections: [
       { id: 'rings', name: 'Rings Collection', keys: [], allowAdd: true, defaultCount: 12, hasJewelryDetails: true },
+    ]
+  },
+  {
+    id: 'bracelets-page',
+    name: 'Bracelets',
+    description: 'Bracelets Collection',
+    sections: [
+      { id: 'bracelets', name: 'Bracelets Collection', keys: [], allowAdd: true, defaultCount: 12, hasJewelryDetails: true },
+    ]
+  },
+  {
+    id: 'bangles-page',
+    name: 'Bangles',
+    description: 'Bangles Collection',
+    sections: [
+      { id: 'bangles', name: 'Bangles Collection', keys: [], allowAdd: true, defaultCount: 12, hasJewelryDetails: true },
+    ]
+  },
+  {
+    id: 'pendants-page',
+    name: 'Pendants',
+    description: 'Pendants Collection',
+    sections: [
+      { id: 'pendants', name: 'Pendants Collection', keys: [], allowAdd: true, defaultCount: 12, hasJewelryDetails: true },
     ]
   },
   {
@@ -151,6 +186,10 @@ export default function AdminDashboard() {
   const [uploading, setUploading] = useState<string | null>(null)
   const [imageKeys, setImageKeys] = useState<string[]>([])
   const [imageMetadata, setImageMetadata] = useState<ImageMetadata>({})
+  const [sectionTitle, setSectionTitle] = useState<string>('Featured Collections')
+  const [sectionIntro, setSectionIntro] = useState<string>(
+    "Discover our meticulously curated collections, where each piece embodies the perfect harmony of traditional craftsmanship and contemporary elegance, designed to celebrate life's most treasured moments."
+  )
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; imageId: string | null }>({ show: false, imageId: null })
   const [dragSourceKey, setDragSourceKey] = useState<string | null>(null)
   
@@ -166,6 +205,15 @@ export default function AdminDashboard() {
       loadImages()
     }
   }, [selectedSection, admin])
+
+  useEffect(() => {
+    if (selectedSection === 'featured-collections' && images.length > 0) {
+      const titleFromDb = images.find(img => (img.metadata as any)?.sectionTitle)?.metadata?.sectionTitle
+      const introFromDb = images.find(img => (img.metadata as any)?.sectionIntro)?.metadata?.sectionIntro
+      if (titleFromDb) setSectionTitle(titleFromDb)
+      if (introFromDb) setSectionIntro(introFromDb)
+    }
+  }, [selectedSection, images])
 
   const checkAuth = async () => {
     try {
@@ -316,7 +364,7 @@ export default function AdminDashboard() {
       }
 
       // Add jewelry fields for all jewelry sections
-      const jewelrySections = ['luxury-jewelry', 'gold-jewelry', 'diamond-jewelry', 'earrings', 'rings', 'daily-wear', 'gifting', 'wedding', 'more-collections']
+      const jewelrySections = ['luxury-jewelry', 'gold-jewelry', 'diamond-jewelry', 'earrings', 'rings', 'bracelets', 'bangles', 'pendants', 'daily-wear', 'gifting', 'wedding', 'more-collections', 'all-jewelry']
       if (jewelrySections.includes(selectedSection)) {
         metadataToSave.category = metadata.category || null
         metadataToSave.purity = metadata.purity || null
@@ -326,6 +374,8 @@ export default function AdminDashboard() {
         metadataToSave.general = metadata.general || null
         metadataToSave.price = metadata.price || null
         metadataToSave.originalPrice = metadata.originalPrice || null
+        // Classification fields
+        metadataToSave.jewelryCategory = (metadata as any).jewelryCategory || metadata.category || null
         // Diamond-specific fields
         metadataToSave.cut = (metadata as any).cut || null
         metadataToSave.clarity = (metadata as any).clarity || null
@@ -446,7 +496,7 @@ export default function AdminDashboard() {
       }
 
       // Add jewelry fields for all jewelry sections
-      const jewelrySections = ['luxury-jewelry', 'gold-jewelry', 'diamond-jewelry', 'earrings', 'rings', 'daily-wear', 'gifting', 'wedding', 'more-collections']
+      const jewelrySections = ['luxury-jewelry', 'gold-jewelry', 'diamond-jewelry', 'earrings', 'rings', 'bracelets', 'bangles', 'pendants', 'daily-wear', 'gifting', 'wedding', 'more-collections', 'all-jewelry']
       if (jewelrySections.includes(selectedSection)) {
         metadataToSave.category = metadata.category || null
         metadataToSave.purity = metadata.purity || null
@@ -456,6 +506,8 @@ export default function AdminDashboard() {
         metadataToSave.general = metadata.general || null
         metadataToSave.price = metadata.price || null
         metadataToSave.originalPrice = metadata.originalPrice || null
+        // Classification fields
+        metadataToSave.jewelryCategory = (metadata as any).jewelryCategory || metadata.category || null
         // Diamond-specific fields
         metadataToSave.cut = (metadata as any).cut || null
         metadataToSave.clarity = (metadata as any).clarity || null
@@ -492,6 +544,91 @@ export default function AdminDashboard() {
         description: error.message || 'Update failed',
         variant: 'destructive',
       })
+    }
+  }
+
+  const moveToAllJewelry = async (imageKey: string) => {
+    const existingImage = images.find(img => img.imageKey === imageKey)
+    if (!existingImage) {
+      toast({ title: 'Error', description: 'Please upload an image first', variant: 'destructive' })
+      return
+    }
+    try {
+      // Fetch existing All Jewellery items to compute next key
+      const res = await fetch(`/api/admin/images?section=all-jewelry`)
+      const data = await res.json()
+      const existingKeys: string[] = (data.images || []).map((img: SiteImage) => img.imageKey)
+      let nextIndex = 1
+      if (existingKeys.length > 0) {
+        const indices = existingKeys
+          .map(k => parseInt((k.match(/(\d+)/)?.[1] || '0'), 10))
+          .filter(n => !isNaN(n))
+        nextIndex = (indices.length ? Math.max(...indices) : 0) + 1
+      }
+      const newKey = `collection-${nextIndex}`
+
+      const metadataToSave: any = { ...(existingImage.metadata || {}) }
+      // Infer item-type category if missing, based on current section
+      if (!metadataToSave.jewelryCategory) {
+        const itemTypeSections = ['earrings', 'rings', 'bracelets', 'bangles', 'pendants', 'necklaces']
+        if (itemTypeSections.includes(selectedSection)) {
+          metadataToSave.jewelryCategory = selectedSection
+        }
+      }
+
+      const saveRes = await fetch('/api/admin/images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          section: 'all-jewelry',
+          imageKey: newKey,
+          url: existingImage.url,
+          alt: existingImage.alt || `all-jewelry ${newKey}`,
+          title: existingImage.title || null,
+          description: existingImage.description || null,
+          metadata: metadataToSave,
+        }),
+      })
+
+      if (!saveRes.ok) throw new Error('Failed to add to All Jewellery')
+      toast({ title: 'Success', description: 'Added to All Jewellery' })
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Operation failed', variant: 'destructive' })
+    }
+  }
+
+  const handleSaveFeaturedCollectionsHeader = async () => {
+    try {
+      const fcImages = images.filter(img => img.section === 'featured-collections')
+      if (fcImages.length === 0) {
+        toast({ title: 'Error', description: 'No images found in Featured Collections', variant: 'destructive' })
+        return
+      }
+      const updates = fcImages.map((existingImage) => {
+        const metadataToSave: any = { ...(existingImage.metadata || {}) }
+        metadataToSave.sectionTitle = sectionTitle || null
+        metadataToSave.sectionIntro = sectionIntro || null
+
+        return fetch('/api/admin/images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            section: 'featured-collections',
+            imageKey: existingImage.imageKey,
+            url: existingImage.url,
+            alt: existingImage.alt,
+            title: existingImage.title || null,
+            description: existingImage.description || null,
+            metadata: metadataToSave,
+          }),
+        })
+      })
+      const results = await Promise.all(updates)
+      if (results.some(res => !res.ok)) throw new Error('One or more updates failed')
+      toast({ title: 'Success', description: 'Section title and description saved' })
+      loadImages()
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Save failed', variant: 'destructive' })
     }
   }
 
@@ -916,6 +1053,42 @@ export default function AdminDashboard() {
 
           <div className="p-8 bg-gradient-to-br from-amber-50/30 to-white">
 
+          {selectedSection === 'featured-collections' && (
+            <div className="mb-8 bg-white border border-amber-200/60 rounded-md shadow-sm p-6">
+              <h3 className="text-[10px] tracking-[0.25em] text-slate-700 uppercase font-light mb-4">Section Header</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Section Title</label>
+                  <Input
+                    type="text"
+                    placeholder="Featured Collections"
+                    value={sectionTitle}
+                    onChange={(e) => setSectionTitle(e.target.value)}
+                    className="bg-white border-amber-300 text-slate-900 placeholder:text-slate-400 text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30 transition-all duration-300"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Section Description</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Intro paragraph shown above the collections on homepage"
+                    value={sectionIntro}
+                    onChange={(e) => setSectionIntro(e.target.value)}
+                    className="w-full bg-white border border-amber-300 rounded-md text-slate-900 placeholder:text-slate-400 text-sm px-3 py-2 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30 transition-all duration-300"
+                  />
+                </div>
+              </div>
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={handleSaveFeaturedCollectionsHeader}
+                  className="px-4 py-2 border border-amber-400/60 bg-gradient-to-r from-amber-100 to-amber-50 hover:from-amber-200 hover:to-amber-100 transition-all duration-300"
+                >
+                  <span className="text-[10px] tracking-[0.25em] text-amber-700 uppercase font-light">Save Header</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {imageKeys.map((imageKey) => {
               const existingImage = images.find(img => img.imageKey === imageKey)
@@ -941,12 +1114,20 @@ export default function AdminDashboard() {
                         )}
                       </div>
                       {existingImage && (
-                        <button
-                          onClick={() => setDeleteConfirm({ show: true, imageId: existingImage.id })}
-                          className="group/del p-2 border border-red-200/60 bg-red-50 hover:bg-red-100 hover:border-red-300/60 transition-all duration-300"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 text-red-600/70 group-hover/del:text-red-700" strokeWidth={1.5} />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => moveToAllJewelry(imageKey)}
+                            className="p-2 border border-amber-300 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 transition-all duration-300"
+                          >
+                            <span className="text-[10px] tracking-[0.2em] text-amber-700">Add to All Jewellery</span>
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirm({ show: true, imageId: existingImage.id })}
+                            className="group/del p-2 border border-red-200/60 bg-red-50 hover:bg-red-100 hover:border-red-300/60 transition-all duration-300"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-red-600/70 group-hover/del:text-red-700" strokeWidth={1.5} />
+                          </button>
+                        </div>
                       )}
                     </div>
 
@@ -1007,7 +1188,7 @@ export default function AdminDashboard() {
                             className="w-full bg-white border border-amber-300 rounded-md text-slate-900 placeholder:text-slate-400 text-sm px-3 py-2 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30 transition-all duration-300"
                           />
                         </div>
-                      </div>
+                                              </div>
                     )}
 
                     {/* Hero Text Fields */}
@@ -1255,7 +1436,7 @@ export default function AdminDashboard() {
                     )}
 
                     {/* Jewelry Details for all jewelry sections */}
-                    {['luxury-jewelry', 'gold-jewelry', 'diamond-jewelry', 'earrings', 'rings', 'daily-wear', 'gifting', 'wedding', 'more-collections'].includes(selectedSection) && (
+                    {['luxury-jewelry', 'gold-jewelry', 'diamond-jewelry', 'earrings', 'rings', 'bracelets', 'bangles', 'pendants', 'daily-wear', 'gifting', 'wedding', 'more-collections', 'all-jewelry'].includes(selectedSection) && (
                       <div className="space-y-4">
                         <div>
                           <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Jewelry Title</label>
@@ -1318,11 +1499,7 @@ export default function AdminDashboard() {
                               <>
                                 <option value="high-jewelry">High Jewelry</option>
                                 <option value="fine-jewelry">Fine Jewelry</option>
-                                <option value="rings">Diamond Rings</option>
-                                <option value="necklaces">Diamond Necklaces</option>
-                                <option value="earrings">Diamond Earrings</option>
-                                <option value="bracelets">Diamond Bracelets</option>
-                                <option value="pendants">Diamond Pendants</option>
+                                <option value="gold">Gold</option>
                               </>
                             ) : selectedSection === 'earrings' ? (
                               <>
@@ -1364,6 +1541,32 @@ export default function AdminDashboard() {
                             )}
                           </select>
                         </div>
+                        {/* Removed Jewelry Type/Subtype per request */}
+                        {selectedSection === 'diamond-jewelry' && (
+                          <div>
+                            <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Item Type</label>
+                            <select
+                              value={(imageMetadata[imageKey] as any)?.jewelryCategory || (existingImage?.metadata as any)?.jewelryCategory || ''}
+                              onChange={(e) => setImageMetadata({
+                                ...imageMetadata,
+                                [imageKey]: {
+                                  ...imageMetadata[imageKey],
+                                  jewelryCategory: e.target.value
+                                } as any
+                              })}
+                              className="w-full bg-white border border-amber-300 text-slate-900 text-sm rounded px-3 py-2 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30 transition-all duration-300"
+                            >
+                              <option value="">Select Item Type</option>
+                              <option value="necklaces">Necklaces</option>
+                              <option value="earrings">Earrings</option>
+                              <option value="rings">Rings</option>
+                              <option value="bangles">Bangles</option>
+                              <option value="bracelets">Bracelets</option>
+                              <option value="chains">Chains</option>
+                              <option value="pendants">Pendants</option>
+                            </select>
+                          </div>
+                        )}
                         {/* Show different fields for diamond vs other jewelry */}
                         {selectedSection === 'diamond-jewelry' ? (
                           <>
@@ -1542,30 +1745,7 @@ export default function AdminDashboard() {
                           </>
                         ) : selectedSection === 'daily-wear' ? (
                           <>
-                            {/* Daily Wear - Jewelry Type */}
-                            <div className="space-y-2">
-                              <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase block">Jewelry Type</label>
-                              <select
-                                value={(imageMetadata[imageKey] as any)?.jewelryType || (existingImage?.metadata as any)?.jewelryType || ''}
-                                onChange={(e) => setImageMetadata({
-                                  ...imageMetadata,
-                                  [imageKey]: {
-                                    ...imageMetadata[imageKey],
-                                    jewelryType: e.target.value
-                                  } as any
-                                })}
-                                className="w-full bg-white border border-amber-300 text-slate-900 text-sm rounded px-3 py-2 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
-                              >
-                                <option value="">Select Type</option>
-                                <option value="Earrings">Earrings</option>
-                                <option value="Necklace">Necklace</option>
-                                <option value="Bracelet">Bracelet</option>
-                                <option value="Ring">Ring</option>
-                                <option value="Pendant">Pendant</option>
-                                <option value="Anklet">Anklet</option>
-                                <option value="Chain">Chain</option>
-                              </select>
-                            </div>
+                            {/* Removed Daily Wear jewelry type per request */}
                             {/* Daily Wear - Style */}
                             <div className="space-y-2">
                               <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase block">Style</label>
@@ -1795,7 +1975,7 @@ export default function AdminDashboard() {
                       </label>
                       
                       {/* Save Button for sections with metadata */}
-                      {(selectedSection === 'featured-collections' || selectedSection === 'new-arrivals' || selectedSection === 'hero' || ['luxury-jewelry', 'gold-jewelry', 'diamond-jewelry', 'earrings', 'rings', 'daily-wear', 'gifting', 'wedding', 'more-collections'].includes(selectedSection)) && existingImage && (
+                      {(selectedSection === 'featured-collections' || selectedSection === 'new-arrivals' || selectedSection === 'hero' || ['luxury-jewelry', 'gold-jewelry', 'diamond-jewelry', 'earrings', 'rings', 'daily-wear', 'gifting', 'wedding', 'more-collections', 'all-jewelry'].includes(selectedSection)) && existingImage && (
                         <button
                           type="button"
                           onClick={() => handleUpdateMetadata(imageKey)}
@@ -1803,7 +1983,7 @@ export default function AdminDashboard() {
                         >
                           <Save className="w-4 h-4 text-white" strokeWidth={2} />
                           <span className="text-sm text-white">
-                            {selectedSection === 'new-arrivals' ? 'Save Product Details' : selectedSection === 'hero' ? 'Save Image' : ['luxury-jewelry', 'gold-jewelry', 'diamond-jewelry', 'earrings', 'rings', 'daily-wear', 'gifting', 'wedding', 'more-collections'].includes(selectedSection) ? 'Save Jewelry Details' : 'Save Title & Description'}
+                            {selectedSection === 'new-arrivals' ? 'Save Product Details' : selectedSection === 'hero' ? 'Save Image' : ['luxury-jewelry', 'gold-jewelry', 'diamond-jewelry', 'earrings', 'rings', 'daily-wear', 'gifting', 'wedding', 'more-collections', 'all-jewelry'].includes(selectedSection) ? 'Save Jewelry Details' : 'Save Title & Description'}
                           </span>
                         </button>
                       )}

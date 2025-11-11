@@ -22,6 +22,10 @@ export function FeaturedCollections() {
   const [loading, setLoading] = useState(true)
   const [showDetails, setShowDetails] = useState(false)
   const [activeCollection, setActiveCollection] = useState<any | null>(null)
+  const [introText, setIntroText] = useState(
+    "Discover our meticulously curated collections, where each piece embodies the perfect harmony of traditional craftsmanship and contemporary elegance, designed to celebrate life's most treasured moments."
+  )
+  const [sectionTitle, setSectionTitle] = useState('Featured Collections')
 
   // Fetch uploaded collection images from database
   useEffect(() => {
@@ -57,6 +61,10 @@ export function FeaturedCollections() {
           console.log('Raw API response:', data.images)
           console.log('Uploaded collections:', uploadedCollections)
           console.log('Number of collections:', uploadedCollections.length)
+          const sectionTitleFromDb = data.images.find((img: any) => img.metadata?.sectionTitle)?.metadata?.sectionTitle
+          const sectionIntroFromDb = data.images.find((img: any) => img.metadata?.sectionIntro)?.metadata?.sectionIntro
+          if (sectionTitleFromDb) setSectionTitle(sectionTitleFromDb)
+          if (sectionIntroFromDb) setIntroText(sectionIntroFromDb)
           setCollections(uploadedCollections)
         } else {
           console.log('No uploaded collections found, using defaults')
@@ -93,8 +101,8 @@ export function FeaturedCollections() {
             key={i}
             className="absolute"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: `${(i * 7 + 13) % 100}%`,
+              top: `${(i * 11 + 17) % 100}%`,
             }}
             animate={{
               y: [0, -20, 0],
@@ -119,8 +127,8 @@ export function FeaturedCollections() {
             key={i}
             className="absolute"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: `${(i * 9 + 23) % 100}%`,
+              top: `${(i * 13 + 31) % 100}%`,
             }}
             animate={{
               y: [0, -30, 0],
@@ -154,7 +162,7 @@ export function FeaturedCollections() {
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.2 }}
             viewport={{ once: true }}
-            className="inline-flex items-center gap-3 mb-6 px-6 py-3 bg-gradient-to-r from-rose-100 to-pink-100 rounded-full border border-rose-200/50"
+            className="inline-flex items-center gap-3 mb-6 px-6 py-3 bg-gradient-to-r from-amber-100 to-rose-100 rounded-full border border-amber-200/60"
           >
             <Crown className="w-5 h-5 text-rose-600" />
             <span className="text-sm font-semibold text-rose-700 tracking-wider uppercase">
@@ -167,20 +175,20 @@ export function FeaturedCollections() {
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
             viewport={{ once: true }}
-            className="text-4xl sm:text-5xl lg:text-6xl font-playfair font-bold text-slate-900 mb-6 leading-tight"
+            className="text-4xl sm:text-5xl lg:text-6xl font-playfair font-extrabold text-slate-900 mb-4 leading-tight tracking-tight"
           >
-            Featured <span className="bg-gradient-to-r from-rose-600 via-pink-600 to-purple-600 bg-clip-text text-transparent">Collections</span>
+            {sectionTitle}
           </motion.h2>
+          <div className="mx-auto w-24 h-[2px] bg-gradient-to-r from-amber-400 via-rose-400 to-amber-400 rounded-full mb-6"></div>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
             viewport={{ once: true }}
-            className="text-lg text-slate-600 max-w-3xl mx-auto leading-relaxed"
+            className="text-lg text-slate-700 max-w-3xl mx-auto leading-relaxed"
           >
-            Discover our meticulously curated collections, where each piece embodies the perfect harmony of 
-            traditional craftsmanship and contemporary elegance, designed to celebrate life's most treasured moments.
+            {introText}
           </motion.p>
         </motion.div>
 
@@ -256,7 +264,7 @@ export function FeaturedCollections() {
                 {/* Content */}
                 <div className="absolute bottom-0 left-0 right-0 p-8 text-white z-10">
                   <motion.h3
-                    className="text-2xl lg:text-3xl font-playfair font-bold mb-3 group-hover:text-yellow-300 transition-colors duration-300"
+                    className="text-2xl lg:text-3xl font-playfair font-bold mb-3 group-hover:text-amber-300 transition-colors duration-300"
                     whileHover={{ scale: 1.05 }}
                   >
                     {collection.title}

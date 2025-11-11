@@ -24,6 +24,7 @@ interface JewelryItem {
     general?: string
     price?: string
     originalPrice?: string
+    jewelryCategory?: string
   }
   imageKey: string
 }
@@ -74,7 +75,8 @@ const defaultJewelryItems: JewelryItem[] = [
       diamond: 'VS1 Clarity, D Color, Excellent Cut',
       general: 'GIA Certified, Handcrafted, Limited Edition',
       price: '₹4,50,000',
-      originalPrice: '₹5,50,000'
+      originalPrice: '₹5,50,000',
+      jewelryCategory: 'rings'
     },
     imageKey: 'jewelry-1'
   },
@@ -91,7 +93,8 @@ const defaultJewelryItems: JewelryItem[] = [
       diamond: 'Natural Rubies and Emeralds',
       general: 'Temple Jewelry Style, Handcrafted by Master Artisans',
       price: '₹2,85,000',
-      originalPrice: '₹3,25,000'
+      originalPrice: '₹3,25,000',
+      jewelryCategory: 'necklaces'
     },
     imageKey: 'jewelry-2'
   },
@@ -108,7 +111,8 @@ const defaultJewelryItems: JewelryItem[] = [
       diamond: 'Colombian Emeralds 4.5ct, VVS Diamonds',
       general: 'Certified Natural Gemstones, Luxury Gift Box',
       price: '₹6,75,000',
-      originalPrice: '₹7,95,000'
+      originalPrice: '₹7,95,000',
+      jewelryCategory: 'earrings'
     },
     imageKey: 'jewelry-3'
   },
@@ -125,7 +129,8 @@ const defaultJewelryItems: JewelryItem[] = [
       diamond: 'South Sea Pearls 10-12mm, VS Diamonds',
       general: 'Adjustable Length, Premium Clasp, Certified Pearls',
       price: '₹3,45,000',
-      originalPrice: '₹4,15,000'
+      originalPrice: '₹4,15,000',
+      jewelryCategory: 'bracelets'
     },
     imageKey: 'jewelry-4'
   },
@@ -142,7 +147,8 @@ const defaultJewelryItems: JewelryItem[] = [
       diamond: 'Ceylon Sapphire 3.5ct, VVS1 Diamond Halo',
       general: 'Royal Blue Sapphire, GRS Certified, Bespoke Design',
       price: '₹8,95,000',
-      originalPrice: '₹10,50,000'
+      originalPrice: '₹10,50,000',
+      jewelryCategory: 'rings'
     },
     imageKey: 'jewelry-5'
   },
@@ -159,7 +165,8 @@ const defaultJewelryItems: JewelryItem[] = [
       diamond: '50 Diamonds, F Color, VS1-VS2 Clarity',
       general: 'Secure Box Clasp, Flexible Design, Certified',
       price: '₹5,25,000',
-      originalPrice: '₹6,25,000'
+      originalPrice: '₹6,25,000',
+      jewelryCategory: 'bracelets'
     },
     imageKey: 'jewelry-6'
   },
@@ -176,7 +183,8 @@ const defaultJewelryItems: JewelryItem[] = [
       diamond: 'Burmese Ruby 2.5ct, Pigeon Blood Red, VVS Diamonds',
       general: 'GRS Certified Ruby, Adjustable Chain, Museum Quality',
       price: '₹12,50,000',
-      originalPrice: '₹14,95,000'
+      originalPrice: '₹14,95,000',
+      jewelryCategory: 'pendants'
     },
     imageKey: 'jewelry-7'
   },
@@ -193,7 +201,8 @@ const defaultJewelryItems: JewelryItem[] = [
       diamond: 'Natural Rubies and Emeralds, Meenakari Work',
       general: 'Traditional Design, Handcrafted, Adjustable Size',
       price: '₹4,15,000',
-      originalPrice: '₹4,75,000'
+      originalPrice: '₹4,75,000',
+      jewelryCategory: 'bangles'
     },
     imageKey: 'jewelry-8'
   }
@@ -217,8 +226,8 @@ export function LuxuryJewelry({ section = 'luxury-jewelry', pageTitle, customCat
   const { addItem: addToCart } = useCartStore()
   const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlistStore()
 
-  // Use custom categories if provided, otherwise use default
-  const categories = customCategories || CATEGORIES
+  // Use item-type categories for all-jewelry, else custom/default
+  const categories: CategoryDef[] = section === 'all-jewelry' ? [] : (customCategories || CATEGORIES)
 
   // Fetch jewelry items from database
   useEffect(() => {
@@ -242,12 +251,12 @@ export function LuxuryJewelry({ section = 'luxury-jewelry', pageTitle, customCat
           setJewelryItems(data.images)
           console.log('State updated successfully')
         } else {
-          console.log(`❌ No images found for ${section}`)
-          setJewelryItems([])
+          console.log(`❌ No images found for ${section} — using dummy defaults`)
+          setJewelryItems(defaultJewelryItems)
         }
       } catch (error) {
         console.error(`Failed to fetch jewelry items for ${section}:`, error)
-        setJewelryItems([])
+        setJewelryItems(defaultJewelryItems)
       }
     }
 
@@ -257,7 +266,10 @@ export function LuxuryJewelry({ section = 'luxury-jewelry', pageTitle, customCat
   // Filter items by category, purity, and carat
   const filteredItems = jewelryItems.filter(item => {
     // Category filter
-    if (selectedCategory !== 'all' && item.metadata?.category !== selectedCategory) {
+    const itemCategory = (section === 'all-jewelry'
+      ? (item.metadata?.jewelryCategory || '').toLowerCase()
+      : (item.metadata?.category || '').toLowerCase())
+    if (selectedCategory !== 'all' && itemCategory !== selectedCategory.toLowerCase()) {
       return false
     }
 
@@ -499,8 +511,10 @@ export function LuxuryJewelry({ section = 'luxury-jewelry', pageTitle, customCat
               )
             })}
 
-            {/* Vertical Divider */}
+            {/* Vertical Divider (only if categories shown) */}
+            {categories.length > 0 && (
             <div className="hidden lg:block h-8 w-px bg-champagne-gold/20"></div>
+            )}
 
             {/* Advanced Filters */}
             {/* Purity Filter */}
@@ -750,147 +764,291 @@ export function LuxuryJewelry({ section = 'luxury-jewelry', pageTitle, customCat
         </motion.div>
 
         {/* Jewelry Grid */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={selectedCategory + sortBy}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.5 }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 lg:gap-10"
-          >
-            {sortedItems.length > 0 ? (
-              sortedItems.map((item, index) => (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, y: 60, scale: 0.9 }}
-                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ 
-                    duration: 0.6, 
-                    delay: index * 0.1,
-                    ease: "easeOut"
-                  }}
-                  viewport={{ once: true }}
-                  className="group relative"
-                >
-                  {/* Premium Card Container */}
-                  <div className="relative bg-white overflow-hidden border border-gray-100 hover:border-champagne-gold/40 transition-all duration-500 group-hover:shadow-2xl">
-                    
-                    {/* Minimal Category Badge */}
-                    {item.metadata?.category && (
-                      <div className="absolute top-3 left-3 z-10">
-                        <div className="bg-white/95 backdrop-blur-sm px-3 py-1 border border-champagne-gold/30 shadow-sm">
-                          <span className="text-[10px] tracking-[0.15em] uppercase text-champagne-gold font-medium">
-                            {item.metadata.category.replace('-', ' ')}
-                          </span>
-                        </div>
-                      </div>
-                    )}
+        {section === 'all-jewelry' ? (
+          <div className="space-y-12">
+            {['diamond','earrings','rings','bracelets','bangles','pendants','necklaces'].map((type) => {
+              const label = type.charAt(0).toUpperCase() + type.slice(1)
+              const rowItems = sortedItems.filter((item) => {
+                const itemType = (item.metadata?.jewelryCategory || '').toLowerCase()
+                if (type === 'diamond') {
+                  return (item.metadata?.diamond && item.metadata.diamond.trim().length > 0) || itemType === 'diamond'
+                }
+                return itemType === type
+              })
 
-                    {/* Clean Image/Video Container */}
-                    <div className="relative aspect-[4/5] overflow-hidden bg-slate-50">
-                      {item.url.match(/\.(mp4|webm|mov|avi)$/i) ? (
-                        <video
-                          src={item.url}
-                          autoPlay
-                          loop
-                          muted
-                          playsInline
-                          preload="auto"
-                          className="w-full h-full object-contain bg-black transition-all duration-700 group-hover:scale-105"
-                        />
-                      ) : (
-                        <Image
-                          src={item.url}
-                          alt={item.title || 'Luxury Jewelry'}
-                          fill
-                          className="object-cover transition-all duration-700 group-hover:scale-105"
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                        />
-                      )}
-                      
-                      {/* Subtle Overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                      
-                      {/* Minimal Quick Actions */}
-                      <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                        <button
-                          onClick={() => handleToggleWishlist(item)}
-                          className="bg-white/90 backdrop-blur-sm hover:bg-white w-9 h-9 flex items-center justify-center border border-gray-200 transition-all"
-                        >
-                          <Heart 
-                            className={`h-4 w-4 transition-colors ${
-                              isInWishlist(item.id) 
-                                ? 'text-red-500 fill-current' 
-                                : 'text-gray-600'
-                            }`} 
-                          />
-                        </button>
-                      </div>
-
-                      {/* Clean CTA */}
-                      <div className="absolute bottom-0 left-0 right-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                        <button
-                          onClick={() => handleAddToCart(item)}
-                          className="w-full bg-black/90 backdrop-blur-sm hover:bg-black text-white py-3 text-xs tracking-[0.15em] uppercase font-medium transition-all flex items-center justify-center gap-2"
-                        >
-                          <ShoppingBag className="h-4 w-4" />
-                          Add to Cart
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Clean Product Information */}
-                    <div className="p-5 bg-white">
-                      {/* Title */}
-                      <h3 className="text-base font-light text-gray-900 mb-2 line-clamp-2 tracking-wide leading-snug" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
-                        {item.title || 'Luxury Jewelry Piece'}
-                      </h3>
-
-                      {/* Description */}
-                      {item.description && (
-                        <p className="text-xs text-gray-500 mb-4 line-clamp-2 leading-relaxed font-light">
-                          {item.description}
-                        </p>
-                      )}
-
-                      {/* Minimal Specifications */}
-                      {item.metadata?.purity && (
-                        <div className="mb-4">
-                          <span className="text-[10px] tracking-[0.15em] uppercase text-gray-400 font-light">
-                            {item.metadata.purity}
-                            {item.metadata.diamondCarat && ` • ${item.metadata.diamondCarat}`}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Clean Pricing */}
-                      {item.metadata?.price && (
-                        <div className="flex items-baseline gap-2 pt-3 border-t border-gray-100">
-                          <span className="text-lg font-light text-gray-900 tracking-wide">
-                            {item.metadata.price}
-                          </span>
-                          {item.metadata.originalPrice && (
-                            <span className="text-xs text-gray-400 line-through font-light">
-                              {item.metadata.originalPrice}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
+              return (
+                <div key={type} className="">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-medium tracking-wide" style={{ fontFamily: 'Cormorant Garamond, serif' }}>{label}</h2>
                   </div>
-                </motion.div>
-              ))
-            ) : (
-              <div className="col-span-full text-center py-20">
-                <Diamond className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-xl text-gray-500">No jewelry items found</p>
-                <p className="text-sm text-gray-400 mt-2">Please check back later for new collections</p>
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
+
+                  <div className="flex gap-6 overflow-x-auto pb-2 snap-x snap-mandatory">
+                    {rowItems.length > 0 ? (
+                      rowItems.map((item, index) => (
+                        <motion.div
+                          key={item.id}
+                          initial={{ opacity: 0, y: 40, scale: 0.96 }}
+                          whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                          transition={{ duration: 0.5, delay: index * 0.05, ease: 'easeOut' }}
+                          viewport={{ once: true }}
+                          className="group relative min-w-[260px] sm:min-w-[280px] lg:min-w-[300px] snap-start"
+                        >
+                          {/* Premium Card Container */}
+                          <div className="relative bg-white overflow-hidden border border-gray-100 hover:border-champagne-gold/40 transition-all duration-500 group-hover:shadow-2xl">
+                            {/* Minimal Category Badge */}
+                            {item.metadata?.category && (
+                              <div className="absolute top-3 left-3 z-10">
+                                <div className="bg-white/95 backdrop-blur-sm px-3 py-1 border border-champagne-gold/30 shadow-sm">
+                                  <span className="text-[10px] tracking-[0.15em] uppercase text-champagne-gold font-medium">
+                                    {item.metadata.category.replace('-', ' ')}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Clean Image/Video Container */}
+                            <div className="relative aspect-[4/5] overflow-hidden bg-slate-50">
+                              {item.url.match(/\.(mp4|webm|mov|avi)$/i) ? (
+                                <video
+                                  src={item.url}
+                                  autoPlay
+                                  loop
+                                  muted
+                                  playsInline
+                                  preload="auto"
+                                  className="w-full h-full object-contain bg-black transition-all duration-700 group-hover:scale-105"
+                                />
+                              ) : (
+                                <Image
+                                  src={item.url}
+                                  alt={item.title || 'Luxury Jewelry'}
+                                  fill
+                                  className="object-cover transition-all duration-700 group-hover:scale-105"
+                                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                                />
+                              )}
+
+                              {/* Subtle Overlay */}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+
+                              {/* Minimal Quick Actions */}
+                              <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                                <button
+                                  onClick={() => handleToggleWishlist(item)}
+                                  className="bg-white/90 backdrop-blur-sm hover:bg-white w-9 h-9 flex items-center justify-center border border-gray-200 transition-all"
+                                >
+                                  <Heart 
+                                    className={`h-4 w-4 transition-colors ${isInWishlist(item.id) ? 'text-red-500 fill-current' : 'text-gray-600'}`} 
+                                  />
+                                </button>
+                              </div>
+
+                              {/* Clean CTA */}
+                              <div className="absolute bottom-0 left-0 right-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                                <button
+                                  onClick={() => handleAddToCart(item)}
+                                  className="w-full bg-black/90 backdrop-blur-sm hover:bg-black text-white py-3 text-xs tracking-[0.15em] uppercase font-medium transition-all flex items-center justify-center gap-2"
+                                >
+                                  <ShoppingBag className="h-4 w-4" />
+                                  Add to Cart
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Clean Product Information */}
+                            <div className="p-5 bg-white">
+                              {/* Title */}
+                              <h3 className="text-base font-light text-gray-900 mb-2 line-clamp-2 tracking-wide leading-snug" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
+                                {item.title || 'Luxury Jewelry Piece'}
+                              </h3>
+
+                              {/* Description */}
+                              {item.description && (
+                                <p className="text-xs text-gray-500 mb-4 line-clamp-2 leading-relaxed font-light">
+                                  {item.description}
+                                </p>
+                              )}
+
+                              {/* Minimal Specifications */}
+                              {item.metadata?.purity && (
+                                <div className="mb-4">
+                                  <span className="text-[10px] tracking-[0.15em] uppercase text-gray-400 font-light">
+                                    {item.metadata.purity}
+                                    {item.metadata.diamondCarat && ` • ${item.metadata.diamondCarat}`}
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* Clean Pricing */}
+                              {item.metadata?.price && (
+                                <div className="flex items-baseline gap-2 pt-3 border-t border-gray-100">
+                                  <span className="text-lg font-light text-gray-900 tracking-wide">
+                                    {item.metadata.price}
+                                  </span>
+                                  {item.metadata.originalPrice && (
+                                    <span className="text-xs text-gray-400 line-through font-light">
+                                      {item.metadata.originalPrice}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-gray-500 py-12 px-2">No items in {label} yet</div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={selectedCategory + sortBy}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.5 }}
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 lg:gap-10"
+            >
+              {sortedItems.length > 0 ? (
+                sortedItems.map((item, index) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 60, scale: 0.9 }}
+                    whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.6, delay: index * 0.1, ease: 'easeOut' }}
+                    viewport={{ once: true }}
+                    className="group relative"
+                  >
+                    {/* Premium Card Container */}
+                    <div className="relative bg-white overflow-hidden border border-gray-100 hover:border-champagne-gold/40 transition-all duration-500 group-hover:shadow-2xl">
+                      {/* Minimal Category Badge */}
+                      {item.metadata?.category && (
+                        <div className="absolute top-3 left-3 z-10">
+                          <div className="bg-white/95 backdrop-blur-sm px-3 py-1 border border-champagne-gold/30 shadow-sm">
+                            <span className="text-[10px] tracking-[0.15em] uppercase text-champagne-gold font-medium">
+                              {item.metadata.category.replace('-', ' ')}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Clean Image/Video Container */}
+                      <div className="relative aspect-[4/5] overflow-hidden bg-slate-50">
+                        {item.url.match(/\.(mp4|webm|mov|avi)$/i) ? (
+                          <video
+                            src={item.url}
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            preload="auto"
+                            className="w-full h-full object-contain bg-black transition-all duration-700 group-hover:scale-105"
+                          />
+                        ) : (
+                          <Image
+                            src={item.url}
+                            alt={item.title || 'Luxury Jewelry'}
+                            fill
+                            className="object-cover transition-all duration-700 group-hover:scale-105"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                          />
+                        )}
+
+                        {/* Subtle Overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+
+                        {/* Minimal Quick Actions */}
+                        <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                          <button
+                            onClick={() => handleToggleWishlist(item)}
+                            className="bg-white/90 backdrop-blur-sm hover:bg-white w-9 h-9 flex items-center justify-center border border-gray-200 transition-all"
+                          >
+                            <Heart 
+                              className={`h-4 w-4 transition-colors ${isInWishlist(item.id) ? 'text-red-500 fill-current' : 'text-gray-600'}`} 
+                            />
+                          </button>
+                        </div>
+
+                        {/* Clean CTA */}
+                        <div className="absolute bottom-0 left-0 right-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                          <button
+                            onClick={() => handleAddToCart(item)}
+                            className="w-full bg-black/90 backdrop-blur-sm hover:bg-black text-white py-3 text-xs tracking-[0.15em] uppercase font-medium transition-all flex items-center justify-center gap-2"
+                          >
+                            <ShoppingBag className="h-4 w-4" />
+                            Add to Cart
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Clean Product Information */}
+                      <div className="p-5 bg-white">
+                        {/* Title */}
+                        <h3 className="text-base font-light text-gray-900 mb-2 line-clamp-2 tracking-wide leading-snug" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
+                          {item.title || 'Luxury Jewelry Piece'}
+                        </h3>
+
+                        {/* Description */}
+                        {item.description && (
+                          <p className="text-xs text-gray-500 mb-4 line-clamp-2 leading-relaxed font-light">
+                            {item.description}
+                          </p>
+                        )}
+
+                        {/* Minimal Specifications */}
+                        {item.metadata?.purity && (
+                          <div className="mb-4">
+                            <span className="text-[10px] tracking-[0.15em] uppercase text-gray-400 font-light">
+                              {item.metadata.purity}
+                              {item.metadata.diamondCarat && ` • ${item.metadata.diamondCarat}`}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Clean Pricing */}
+                        {item.metadata?.price && (
+                          <div className="flex items-baseline gap-2 pt-3 border-t border-gray-100">
+                            <span className="text-lg font-light text-gray-900 tracking-wide">
+                              {item.metadata.price}
+                            </span>
+                            {item.metadata.originalPrice && (
+                              <span className="text-xs text-gray-400 line-through font-light">
+                                {item.metadata.originalPrice}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                ))
+              ) : (
+                <div className="col-span-full text-center py-20">
+                  <Diamond className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-xl text-gray-500">No jewelry items found</p>
+                  <p className="text-sm text-gray-400 mt-2">Please check back later for new collections</p>
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        )}
       </div>
     </section>
   )
 }
+
+type CategoryDef = { id: string; name: string; icon: any }
+const ITEM_TYPE_CATEGORIES: CategoryDef[] = [
+  { id: 'all', name: 'All Types', icon: Gem },
+  { id: 'rings', name: 'Rings', icon: Diamond },
+  { id: 'earrings', name: 'Earrings', icon: Sparkles },
+  { id: 'necklaces', name: 'Necklaces', icon: Crown },
+  { id: 'bracelets', name: 'Bracelets', icon: Gem },
+  { id: 'bangles', name: 'Bangles', icon: Gem },
+  { id: 'pendants', name: 'Pendants', icon: Diamond }
+]
