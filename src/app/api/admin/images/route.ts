@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Upsert image
+    // Upsert primary image
     const image = await prisma.siteImage.upsert({
       where: {
         section_imageKey: {
@@ -71,6 +71,85 @@ export async function POST(request: NextRequest) {
         metadata,
       },
     })
+
+    // Auto-duplicate logic based on jewelry type/subtype/category
+    const lower = (s: any) => (typeof s === 'string' ? s.toLowerCase() : '')
+    const jType = lower((metadata as any)?.jewelryType)
+    const jSub = lower((metadata as any)?.jewelrySubType)
+    const jCatRaw = (metadata as any)?.jewelryCategory ?? (metadata as any)?.category
+    const jCat = lower(jCatRaw)
+
+    const normalizeCategorySection = (cat: string): string | null => {
+      if (!cat) return null
+      if (cat.startsWith('earring')) return 'earrings'
+      if (cat.startsWith('ring')) return 'rings'
+      // Extend as needed: bracelets, bangles, necklaces, pendants
+      if (cat.startsWith('bracelet')) return 'bracelets'
+      if (cat.startsWith('bangle')) return 'bangles'
+      if (cat.startsWith('necklace')) return 'necklaces'
+      if (cat.startsWith('pendant')) return 'pendants'
+      return null
+    }
+
+    let typeSection: string | null = null
+    if (jSub === 'diamond' || section === 'diamond-jewelry') {
+      typeSection = 'diamond-jewelry'
+    } else if (jSub === 'gold' || section === 'gold-jewelry') {
+      typeSection = 'gold-jewelry'
+    } else if (jType === 'high' || jType === 'fine' || section === 'luxury-jewelry') {
+      typeSection = 'luxury-jewelry'
+    }
+
+    // Fallback: earrings/rings category chosen with diamond/gold indicates type section
+    if (!typeSection && section === 'earrings') {
+      if (jCat === 'diamond') typeSection = 'diamond-jewelry'
+      else if (jCat === 'gold') typeSection = 'gold-jewelry'
+    }
+    if (!typeSection && section === 'rings') {
+      if (jCat === 'diamond') typeSection = 'diamond-jewelry'
+      else if (jCat === 'gold') typeSection = 'gold-jewelry'
+    }
+
+    const categorySection = normalizeCategorySection(jCat)
+
+    const ensureSections = [typeSection, categorySection].filter(Boolean) as string[]
+
+    for (const targetSection of ensureSections) {
+      if (targetSection && targetSection !== section) {
+        await prisma.siteImage.upsert({
+          where: {
+            section_imageKey: { section: targetSection, imageKey },
+          },
+          update: {
+            url,
+            alt,
+            title,
+            description,
+            metadata: {
+              ...(metadata ?? {}),
+              jewelryType: jType || null,
+              jewelrySubType: jSub || null,
+              jewelryCategory: jCat || null,
+            },
+            updatedAt: new Date(),
+          },
+          create: {
+            section: targetSection,
+            imageKey,
+            url,
+            alt,
+            title,
+            description,
+            metadata: {
+              ...(metadata ?? {}),
+              jewelryType: jType || null,
+              jewelrySubType: jSub || null,
+              jewelryCategory: jCat || null,
+            },
+          },
+        })
+      }
+    }
 
     return NextResponse.json({ success: true, image })
   } catch (error) {

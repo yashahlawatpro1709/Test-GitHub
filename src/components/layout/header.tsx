@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
 const navigation = [
   { 
     name: 'All Jewellery', 
-    href: '/collections',
+    href: '/all-jewelry',
     icon: Gem,
     description: 'Complete Collection'
   },
@@ -48,29 +48,37 @@ const navigation = [
     description: 'Eternal Bonds'
   },
   { 
+    name: 'Bracelets',
+    href: '/products/bracelets',
+    icon: Sparkles,
+    description: 'Elegant Wrist'
+  },
+  { 
+    name: 'Bangles',
+    href: '/products/bangles',
+    icon: Sparkles,
+    description: 'Traditional Grace'
+  },
+  { 
+    name: 'Pendants',
+    href: '/products/pendants',
+    icon: Gem,
+    description: 'Statement Charm'
+  },
+  { 
     name: 'Daily Wear', 
     href: '/products/daily-wear',
     icon: Heart,
     description: 'Everyday Luxury'
   },
-  { 
-    name: 'Collections', 
-    href: '/collections/premium',
-    icon: Gift,
-    description: 'Curated Sets'
-  },
+
   { 
     name: 'Wedding', 
     href: '/products/wedding',
     icon: Crown,
     description: 'Bridal Elegance'
   },
-  { 
-    name: 'Gifting', 
-    href: '/gifting',
-    icon: Gift,
-    description: 'Perfect Presents'
-  },
+
   { 
     name: 'More', 
     href: '/more',
@@ -318,78 +326,57 @@ export function Header() {
         </div>
 
         {/* Navigation Menu */}
-        <div className="hidden lg:block bg-white/50 backdrop-blur-sm">
+        <div className="hidden lg:block bg-white/70 backdrop-blur-md border-t border-gray-100/40">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <nav className="flex items-center justify-center space-x-1 py-3">
-              {navigation.map((item, index) => {
-                const IconComponent = item.icon
-                return (
-                  <motion.div
-                    key={item.name}
-                    className="group relative"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.05 }}
-                    whileHover={{ 
-                      scale: 1.05,
-                      transition: { duration: 0.2 }
-                    }}
-                  >
-                    <motion.div
-                      className="absolute inset-0 bg-gradient-to-r from-rose-400/20 to-pink-400/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                      initial={{ scale: 0.8 }}
-                      whileHover={{ scale: 1 }}
-                      transition={{ duration: 0.3 }}
-                    />
-                    <Link
-                      href={item.href}
-                      className="relative px-4 py-2 rounded-lg transition-all duration-300 hover:bg-rose-50/50 flex items-center space-x-2"
-                    >
-                      <motion.div
-                        whileHover={{ 
-                          rotate: [0, -10, 10, 0],
-                          scale: [1, 1.1, 1]
-                        }}
-                        transition={{ duration: 0.5 }}
-                      >
-                        <IconComponent className="h-4 w-4 text-gray-600 group-hover:text-rose-600 transition-colors" />
-                      </motion.div>
-                      <motion.span
-                        className="text-sm font-medium text-gray-700 group-hover:text-rose-600 transition-colors"
-                        whileHover={{ 
-                          x: [0, 2, 0],
-                          transition: { duration: 0.3 }
-                        }}
-                      >
-                        {item.name}
-                      </motion.span>
-                      <div className="absolute inset-x-0 -bottom-1 h-0.5 bg-gradient-to-r from-rose-400 to-pink-500 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-center" />
-                      
-                      {/* Enhanced Tooltip */}
-                      <motion.div
-                        className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gradient-to-r from-gray-900 to-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap z-10 shadow-xl"
-                        initial={{ opacity: 0, y: -5, scale: 0.9 }}
-                        whileHover={{ 
-                          opacity: 1, 
-                          y: 0, 
-                          scale: 1,
-                          transition: { duration: 0.2 }
-                        }}
-                      >
-                        {item.description}
-                        <motion.div 
-                          className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"
-                          initial={{ rotate: 45 }}
-                          whileHover={{ rotate: [45, 90, 45] }}
-                          transition={{ duration: 0.5 }}
-                        />
-                      </motion.div>
-                    </Link>
-                  </motion.div>
-                )
-              })}
-            </nav>
-          </div>
+        <nav className="flex items-center justify-center space-x-1 py-4">
+        {navigation.map((item, index) => {
+        const IconComponent = item.icon
+        return (
+        <motion.div
+        key={item.name}
+        className="group relative"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: index * 0.05 }}
+        whileHover={{ 
+        scale: 1.05,
+        transition: { duration: 0.2 }
+        }}
+        >
+        <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-[#D4AF37]/10 to-[#E8B4B8]/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        initial={{ scale: 0.8 }}
+        whileHover={{ scale: 1 }}
+        transition={{ duration: 0.3 }}
+        />
+        <Link
+        href={item.href}
+        className="relative px-5 py-2.5 rounded-lg transition-all duration-300 hover:bg-white/60 hover:shadow-elegant flex items-center space-x-2"
+        >
+        <motion.div
+        whileHover={{ 
+        scale: [1, 1.05, 1]
+        }}
+        transition={{ duration: 0.4 }}
+        >
+        <IconComponent className="h-4 w-4 text-gray-700 group-hover:text-[#D4AF37] transition-colors" />
+        </motion.div>
+        <motion.span
+        className="text-sm font-medium tracking-wide text-gray-800 group-hover:text-[#D4AF37] transition-colors"
+        whileHover={{ 
+        x: [0, 2, 0],
+        transition: { duration: 0.3 }
+        }}
+        >
+        {item.name}
+        </motion.span>
+        <div className="absolute inset-x-0 -bottom-1 h-0.5 bg-gradient-to-r from-[#D4AF37] to-[#E8B4B8] scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-center" />
+        </Link>
+        </motion.div>
+        )
+        })}
+        </nav>
+        </div>
         </div>
       </motion.header>
 

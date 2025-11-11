@@ -41,7 +41,7 @@ export function BrandStory() {
   }, [])
 
   return (
-    <section id="brand-story" className="py-24 bg-gradient-to-br from-white via-slate-50/50 to-rose-50/30 relative overflow-hidden">
+    <section id="brand-story" className="pt-28 pb-44 bg-neutral-50 relative overflow-hidden">
       {/* Background Decorative Elements */}
       <div className="absolute inset-0 pointer-events-none">
         {/* Floating Gems */}
@@ -50,24 +50,24 @@ export function BrandStory() {
             key={i}
             className="absolute"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: `${(i * 9) % 100}%`,
+              top: `${(i * 11) % 100}%`,
             }}
             animate={{
-              y: [0, -25, 0],
-              x: [0, 10, 0],
-              rotate: [0, 180, 360],
-              scale: [0.8, 1.2, 0.8],
-              opacity: [0.2, 0.6, 0.2]
+              y: [0, -10, 0],
+              x: [0, 6, 0],
+              rotate: [0, 120, 240],
+              scale: [0.95, 1.05, 0.95],
+              opacity: [0.08, 0.15, 0.08]
             }}
             transition={{
-              duration: 8 + Math.random() * 4,
+              duration: 10,
               repeat: Infinity,
-              delay: Math.random() * 5,
+              delay: i * 0.2,
               ease: "easeInOut"
             }}
           >
-            <Gem className="w-4 h-4 text-rose-300/40" />
+            <Gem className="w-3 h-3 text-[#bfa06a]/40" />
           </motion.div>
         ))}
 
@@ -77,22 +77,22 @@ export function BrandStory() {
             key={i}
             className="absolute"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: `${(i * 13) % 100}%`,
+              top: `${(i * 17) % 100}%`,
             }}
             animate={{
-              rotate: [0, 360],
-              scale: [0.5, 1, 0.5],
-              opacity: [0, 0.8, 0]
+              rotate: [0, 180, 360],
+              scale: [0.9, 1.05, 0.9],
+              opacity: [0.05, 0.12, 0.05]
             }}
             transition={{
-              duration: 6 + Math.random() * 3,
+              duration: 9,
               repeat: Infinity,
-              delay: Math.random() * 4,
+              delay: i * 0.25,
               ease: "easeInOut"
             }}
           >
-            <Star className="w-3 h-3 text-yellow-400/30" />
+            <Star className="w-3 h-3 text-[#bfa06a]/40" />
           </motion.div>
         ))}
       </div>
@@ -113,10 +113,10 @@ export function BrandStory() {
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.2 }}
               viewport={{ once: true }}
-              className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-rose-100 to-pink-100 rounded-full border border-rose-200/50"
+              className="inline-flex items-center gap-3 px-6 py-3 bg-white rounded-full border border-neutral-200/60"
             >
-              <Heart className="w-5 h-5 text-rose-600" />
-              <span className="text-sm font-semibold text-rose-700 tracking-wider uppercase">
+              <Heart className="w-5 h-5 text-[#bfa06a]" />
+              <span className="text-sm font-semibold text-neutral-700 tracking-wider uppercase">
                 Our Heritage
               </span>
             </motion.div>
@@ -127,9 +127,9 @@ export function BrandStory() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.3 }}
               viewport={{ once: true }}
-              className="text-4xl sm:text-5xl lg:text-6xl font-playfair font-bold text-slate-900 leading-tight"
+              className="text-4xl sm:text-5xl lg:text-6xl font-playfair font-bold text-neutral-900 tracking-tight"
             >
-              Crafting <span className="bg-gradient-to-r from-rose-600 via-pink-600 to-purple-600 bg-clip-text text-transparent">Dreams</span> Into Reality
+              Crafting Dreams Into Reality
             </motion.h2>
 
             {/* Description */}
@@ -161,8 +161,8 @@ export function BrandStory() {
             >
               <div className="text-center">
                 <motion.div
-                  className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-rose-600 to-pink-600 bg-clip-text text-transparent mb-2"
-                  whileHover={{ scale: 1.1 }}
+                  className="text-3xl lg:text-4xl font-bold text-[#bfa06a] mb-2"
+                  whileHover={{ scale: 1 }}
                   transition={{ type: "spring", stiffness: 400, damping: 25 }}
                 >
                   30+
@@ -172,8 +172,8 @@ export function BrandStory() {
               
               <div className="text-center">
                 <motion.div
-                  className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-rose-600 to-pink-600 bg-clip-text text-transparent mb-2"
-                  whileHover={{ scale: 1.1 }}
+                  className="text-3xl lg:text-4xl font-bold text-[#bfa06a] mb-2"
+                  whileHover={{ scale: 1 }}
                   transition={{ type: "spring", stiffness: 400, damping: 25 }}
                 >
                   50K+
@@ -183,8 +183,8 @@ export function BrandStory() {
               
               <div className="text-center">
                 <motion.div
-                  className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-rose-600 to-pink-600 bg-clip-text text-transparent mb-2"
-                  whileHover={{ scale: 1.1 }}
+                  className="text-3xl lg:text-4xl font-bold text-[#bfa06a] mb-2"
+                  whileHover={{ scale: 1 }}
                   transition={{ type: "spring", stiffness: 400, damping: 25 }}
                 >
                   100+
@@ -201,9 +201,9 @@ export function BrandStory() {
               viewport={{ once: true }}
               className="space-y-4"
             >
-              <div className="flex items-center gap-4 p-4 bg-white/60 backdrop-blur-sm rounded-2xl border border-rose-100/50 shadow-sm">
-                <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-rose-500 to-pink-500 rounded-full flex items-center justify-center">
-                  <Award className="w-6 h-6 text-white" />
+              <div className="flex items-center gap-4 p-4 bg-white/60 backdrop-blur-sm rounded-2xl border border-neutral-200/60 shadow-sm">
+                <div className="flex-shrink-0 w-12 h-12 bg-white border border-neutral-200 rounded-full flex items-center justify-center">
+                  <Award className="w-6 h-6 text-[#bfa06a]" />
                 </div>
                 <div>
                   <h4 className="font-semibold text-slate-900 mb-1">Premium Quality</h4>
@@ -211,9 +211,9 @@ export function BrandStory() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 p-4 bg-white/60 backdrop-blur-sm rounded-2xl border border-rose-100/50 shadow-sm">
-                <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center">
-                  <Crown className="w-6 h-6 text-white" />
+              <div className="flex items-center gap-4 p-4 bg-white/60 backdrop-blur-sm rounded-2xl border border-neutral-200/60 shadow-sm">
+                <div className="flex-shrink-0 w-12 h-12 bg-white border border-neutral-200 rounded-full flex items-center justify-center">
+                  <Crown className="w-6 h-6 text-[#bfa06a]" />
                 </div>
                 <div>
                   <h4 className="font-semibold text-slate-900 mb-1">Master Craftsmanship</h4>
@@ -221,9 +221,9 @@ export function BrandStory() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 p-4 bg-white/60 backdrop-blur-sm rounded-2xl border border-rose-100/50 shadow-sm">
-                <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center">
-                  <Sparkles className="w-6 h-6 text-white" />
+              <div className="flex items-center gap-4 p-4 bg-white/60 backdrop-blur-sm rounded-2xl border border-neutral-200/60 shadow-sm">
+                <div className="flex-shrink-0 w-12 h-12 bg-white border border-neutral-200 rounded-full flex items-center justify-center">
+                  <Sparkles className="w-6 h-6 text-[#bfa06a]" />
                 </div>
                 <div>
                   <h4 className="font-semibold text-slate-900 mb-1">Timeless Design</h4>
@@ -238,22 +238,20 @@ export function BrandStory() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.7 }}
               viewport={{ once: true }}
-            >
-              <Link href="/about">
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              className="mt-10 md:mt-12">
+              <motion.div
+                whileHover={{ scale: 1.03, y: -1 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              >
+                <Link 
+                  href="/about"
+                  className="inline-flex items-center px-8 py-4 rounded-full bg-white text-neutral-900 font-medium border border-neutral-300 tracking-wide group shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#bfa06a]/40 transition-all duration-300"
                 >
-                  <Button 
-                    size="lg" 
-                    className="bg-gradient-to-r from-rose-600 via-pink-600 to-purple-600 hover:from-rose-700 hover:via-pink-700 hover:to-purple-700 text-white font-semibold px-8 py-4 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 group"
-                  >
-                    <span>Discover Our Story</span>
-                    <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-                  </Button>
-                </motion.div>
-              </Link>
+                  <span>Discover Our Story</span>
+                  <ArrowRight className="ml-2 h-5 w-5 text-[#bfa06a] transition-transform group-hover:translate-x-1" />
+                </Link>
+              </motion.div>
             </motion.div>
           </motion.div>
 
@@ -268,7 +266,7 @@ export function BrandStory() {
             <div className="relative">
               {/* Main Image Container */}
               <motion.div
-                className="relative h-[600px] lg:h-[700px] rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-slate-100 to-slate-200"
+                className="relative h-[600px] lg:h-[700px] rounded-3xl overflow-hidden shadow-xl bg-neutral-100"
                 whileHover={{ scale: 1.02, rotate: 1 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
               >
@@ -282,7 +280,7 @@ export function BrandStory() {
                 />
                 
                 {/* Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent" />
                 
                 {/* Floating Elements */}
                 <div className="absolute inset-0 pointer-events-none">
@@ -312,16 +310,12 @@ export function BrandStory() {
                 </div>
 
                 {/* Shimmer Effect */}
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                  animate={{ x: ["-100%", "100%"] }}
-                  transition={{ duration: 3, repeat: Infinity, repeatDelay: 4 }}
-                />
+                <motion.div className="hidden" />
               </motion.div>
 
               {/* Decorative Elements */}
               <motion.div
-                className="absolute -top-6 -right-6 w-24 h-24 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full opacity-20 blur-xl"
+                className="hidden"
                 animate={{
                   scale: [1, 1.2, 1],
                   opacity: [0.2, 0.4, 0.2]
@@ -330,7 +324,7 @@ export function BrandStory() {
               />
               
               <motion.div
-                className="absolute -bottom-8 -left-8 w-32 h-32 bg-gradient-to-r from-rose-400 to-pink-500 rounded-full opacity-20 blur-xl"
+                className="hidden"
                 animate={{
                   scale: [1, 1.3, 1],
                   opacity: [0.2, 0.3, 0.2]
@@ -344,12 +338,12 @@ export function BrandStory() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.6, delay: 0.8 }}
                 viewport={{ once: true }}
-                className="absolute top-8 left-8 bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-white/50"
+                className="hidden"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-r from-rose-500 to-pink-500 rounded-full flex items-center justify-center">
-                    <Diamond className="w-6 h-6 text-white" />
-                  </div>
+                  <div className="w-12 h-12 bg-[#bfa06a] rounded-full flex items-center justify-center">
+  <Diamond className="w-6 h-6 text-white" />
+</div>
                   <div>
                     <div className="font-bold text-slate-900 text-lg">Premium</div>
                     <div className="text-sm text-slate-600">Handcrafted</div>
@@ -363,7 +357,7 @@ export function BrandStory() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.6, delay: 1 }}
                 viewport={{ once: true }}
-                className="absolute bottom-8 right-8 bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-white/50"
+                className="hidden"
               >
                 <div className="text-center">
                   <div className="flex justify-center mb-2">
@@ -375,7 +369,7 @@ export function BrandStory() {
                         transition={{ duration: 0.3, delay: 1.2 + i * 0.1 }}
                         viewport={{ once: true }}
                       >
-                        <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                        <Star className="w-4 h-4 text-[#bfa06a] fill-current" />
                       </motion.div>
                     ))}
                   </div>
