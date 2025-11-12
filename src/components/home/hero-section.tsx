@@ -360,6 +360,15 @@ export function HeroSection({ initialSlides = [] }: { initialSlides?: any[] }) {
                           priority={isCenter}
                           sizes="100vw"
                           style={{ objectPosition: 'center center' }}
+                          unoptimized={/^\/uploads\//.test(String(slide.mainImage)) || /\.svg$/i.test(String(slide.mainImage))}
+                          onError={(e) => {
+                            try {
+                              const el = e.currentTarget as HTMLImageElement
+                              if (!el.src.includes('/woman-in-saree.svg')) {
+                                el.src = '/woman-in-saree.svg'
+                              }
+                            } catch {}
+                          }}
                         />
                       )}
 
