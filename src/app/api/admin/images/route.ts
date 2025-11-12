@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 // GET all images or filter by section
 export async function GET(request: NextRequest) {
   try {
@@ -10,8 +12,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { searchParams } = new URL(request.url)
-    const section = searchParams.get('section')
+    const section = request.nextUrl.searchParams.get('section')
 
     const images = await prisma.siteImage.findMany({
       where: section ? { section } : undefined,
@@ -169,8 +170,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
+    const id = request.nextUrl.searchParams.get('id')
 
     if (!id) {
       return NextResponse.json(
