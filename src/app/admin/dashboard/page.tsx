@@ -834,6 +834,21 @@ export default function AdminDashboard() {
     if (selectedSection === 'hero' || selectedSection === 'featured-collections' || selectedSection === 'new-arrivals') setDragSourceKey(key)
   }
 
+  // Auto-scroll page while dragging near viewport edges
+  const handleDragOverAutoScroll = (e: React.DragEvent) => {
+    if (!(selectedSection === 'hero' || selectedSection === 'featured-collections' || selectedSection === 'new-arrivals')) return
+    e.preventDefault()
+    const y = e.clientY
+    const vh = window.innerHeight
+    const threshold = 100
+    const speed = 40
+    if (y < threshold) {
+      window.scrollBy({ top: -speed, behavior: 'auto' })
+    } else if (y > vh - threshold) {
+      window.scrollBy({ top: speed, behavior: 'auto' })
+    }
+  }
+
   const handleDropSwap = (targetKey: string) => {
     if (!dragSourceKey || dragSourceKey === targetKey) return
     if (selectedSection === 'hero') {
@@ -845,6 +860,25 @@ export default function AdminDashboard() {
     }
     setDragSourceKey(null)
   }
+
+  // Global dragover listener to support auto-scroll anywhere in viewport
+  useEffect(() => {
+    const onDragOver = (e: DragEvent) => {
+      if (!(selectedSection === 'hero' || selectedSection === 'featured-collections' || selectedSection === 'new-arrivals')) return
+      const y = e.clientY
+      const vh = window.innerHeight
+      const threshold = 120
+      const speed = 60
+      if (y < threshold) {
+        window.scrollBy({ top: -speed, behavior: 'auto' })
+      } else if (y > vh - threshold) {
+        window.scrollBy({ top: speed, behavior: 'auto' })
+      }
+      e.preventDefault()
+    }
+    window.addEventListener('dragover', onDragOver, { passive: false })
+    return () => window.removeEventListener('dragover', onDragOver)
+  }, [selectedSection])
 
   const currentSection = SECTIONS.find(s => s.id === selectedSection)
 
@@ -1089,13 +1123,13 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" onDragOver={handleDragOverAutoScroll}>
             {imageKeys.map((imageKey) => {
               const existingImage = images.find(img => img.imageKey === imageKey)
               const isUploading = uploading === imageKey
 
               return (
-                <div key={imageKey} className="group relative bg-white border border-amber-200/60 hover:border-amber-400/60 transition-all duration-500 shadow-md shadow-amber-500/5 hover:shadow-lg hover:shadow-amber-500/10 overflow-hidden" draggable={selectedSection === 'hero' || selectedSection === 'featured-collections' || selectedSection === 'new-arrivals'} onDragStart={() => handleDragStart(imageKey)} onDragOver={(e) => { if (selectedSection === 'hero' || selectedSection === 'featured-collections' || selectedSection === 'new-arrivals') e.preventDefault() }} onDrop={() => handleDropSwap(imageKey)}>
+                <div key={imageKey} className="group relative bg-white border border-amber-200/60 hover:border-amber-400/60 transition-all duration-500 shadow-md shadow-amber-500/5 hover:shadow-lg hover:shadow-amber-500/10 overflow-hidden" draggable={selectedSection === 'hero' || selectedSection === 'featured-collections' || selectedSection === 'new-arrivals'} onDragStart={() => handleDragStart(imageKey)} onDragOver={handleDragOverAutoScroll} onDrop={() => handleDropSwap(imageKey)}>
                   {/* Subtle corner decoration */}
                   <div className="absolute top-0 right-0 w-16 h-16 border-r border-t border-amber-300/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                   
