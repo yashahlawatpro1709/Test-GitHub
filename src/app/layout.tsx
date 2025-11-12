@@ -1,7 +1,7 @@
 import './tailwind.css'
 import type { Metadata } from 'next'
 import { ThemeProvider } from '@/components/theme-provider'
-import { Header } from '@/components/layout/header'
+import { HeaderWrapper } from '@/components/layout/header-wrapper'
 import { Footer } from '@/components/layout/footer'
 import { CartSidebar } from '@/components/cart/cart-sidebar'
 import { WishlistSidebar } from '@/components/wishlist/wishlist-sidebar'
@@ -93,7 +93,7 @@ export default function RootLayout({
         >
           <ChatbotProvider>
             <div className="relative flex min-h-screen flex-col">
-              <Header />
+              <HeaderWrapper />
               <main className="flex-1 pt-16 lg:pt-20">
                 {children}
               </main>
