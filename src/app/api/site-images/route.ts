@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 // Public API to get site images
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const section = searchParams.get('section')
+    const section = request.nextUrl.searchParams.get('section')
 
     const images = await prisma.siteImage.findMany({
       where: section ? { section, isActive: true } : { isActive: true },

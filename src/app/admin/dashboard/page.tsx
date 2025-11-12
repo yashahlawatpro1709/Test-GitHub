@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -178,8 +178,6 @@ const SECTIONS = PAGE_CATEGORIES.flatMap(page => page.sections)
 
 export default function AdminDashboard() {
   const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
   const [admin, setAdmin] = useState<Admin | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedPage, setSelectedPage] = useState(PAGE_CATEGORIES[0].id)
@@ -201,8 +199,9 @@ export default function AdminDashboard() {
   // Initialize selected page/section from URL or localStorage
   useEffect(() => {
     try {
-      const pageParam = searchParams?.get('page') || null
-      const sectionParam = searchParams?.get('section') || null
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+      const pageParam = params ? params.get('page') : null
+      const sectionParam = params ? params.get('section') : null
       const validPage = !!pageParam && PAGE_CATEGORIES.some(p => p.id === pageParam)
       const validSection = !!sectionParam && SECTIONS.some(s => s.id === sectionParam)
       if (validPage) setSelectedPage(pageParam as string)
@@ -219,10 +218,11 @@ export default function AdminDashboard() {
   // Sync selection to URL and localStorage
   useEffect(() => {
     try {
-      const params = new URLSearchParams(searchParams?.toString() || '')
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
       params.set('page', selectedPage)
       params.set('section', selectedSection)
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+      const path = typeof window !== 'undefined' ? window.location.pathname : '/admin/dashboard'
+      router.replace(`${path}?${params.toString()}`, { scroll: false })
       if (typeof window !== 'undefined') {
         localStorage.setItem('admin.selectedPage', selectedPage)
         localStorage.setItem('admin.selectedSection', selectedSection)
