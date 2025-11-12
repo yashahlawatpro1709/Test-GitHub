@@ -69,9 +69,18 @@ export async function POST(request: NextRequest) {
     const filename = `${timestamp}-${sanitizedName}`
     const pathname = `${folder}/${filename}`
 
-    // Use Vercel Blob in production, local storage in development
-    if (isProduction() && process.env.BLOB_READ_WRITE_TOKEN) {
-      // Upload to Vercel Blob Storage
+    // In production, require Blob token; do NOT fall back to local
+    if (isProduction()) {
+      if (!process.env.BLOB_READ_WRITE_TOKEN) {
+        return NextResponse.json(
+          {
+            error: 'Blob storage not configured for production',
+            hint: 'Set BLOB_READ_WRITE_TOKEN in Vercel environment variables',
+          },
+          { status: 500 }
+        )
+      }
+
       const blob = await put(pathname, buffer, {
         access: 'public',
         contentType: file.type,
@@ -83,31 +92,31 @@ export async function POST(request: NextRequest) {
         publicId: filename,
         width: null,
         height: null,
-      })
-    } else {
-      // Save locally
-      const uploadDir = join(process.cwd(), 'public', 'uploads', folder)
-      if (!existsSync(uploadDir)) {
-        await mkdir(uploadDir, { recursive: true })
-      }
-
-      const timestamp = Date.now()
-      const filename = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
-      const filepath = join(uploadDir, filename)
-
-      await writeFile(filepath, buffer)
-
-      const url = `/uploads/${folder}/${filename}`
-
-      return NextResponse.json({
-        success: true,
-        url,
-        publicId: filename,
-        width: null,
-        height: null,
-        storage: 'local',
+        storage: 'blob',
       })
     }
+
+    // Development: save locally
+    const uploadDir = join(process.cwd(), 'public', 'uploads', folder)
+    if (!existsSync(uploadDir)) {
+      await mkdir(uploadDir, { recursive: true })
+    }
+
+    const devFilename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+    const filepath = join(uploadDir, devFilename)
+
+    await writeFile(filepath, buffer)
+
+    const url = `/uploads/${folder}/${devFilename}`
+
+    return NextResponse.json({
+      success: true,
+      url,
+      publicId: devFilename,
+      width: null,
+      height: null,
+      storage: 'local',
+    })
   } catch (error: any) {
     console.error('Upload error:', error)
     
