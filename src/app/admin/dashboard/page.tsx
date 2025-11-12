@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -178,6 +178,8 @@ const SECTIONS = PAGE_CATEGORIES.flatMap(page => page.sections)
 
 export default function AdminDashboard() {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [admin, setAdmin] = useState<Admin | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedPage, setSelectedPage] = useState(PAGE_CATEGORIES[0].id)
@@ -195,6 +197,38 @@ export default function AdminDashboard() {
   
   // Get current page sections
   const currentPageSections = PAGE_CATEGORIES.find(p => p.id === selectedPage)?.sections || []
+
+  // Initialize selected page/section from URL or localStorage
+  useEffect(() => {
+    try {
+      const pageParam = searchParams?.get('page') || null
+      const sectionParam = searchParams?.get('section') || null
+      const validPage = !!pageParam && PAGE_CATEGORIES.some(p => p.id === pageParam)
+      const validSection = !!sectionParam && SECTIONS.some(s => s.id === sectionParam)
+      if (validPage) setSelectedPage(pageParam as string)
+      if (validSection) setSelectedSection(sectionParam as string)
+      if (!validPage || !validSection) {
+        const storedPage = typeof window !== 'undefined' ? localStorage.getItem('admin.selectedPage') : null
+        const storedSection = typeof window !== 'undefined' ? localStorage.getItem('admin.selectedSection') : null
+        if (storedPage && PAGE_CATEGORIES.some(p => p.id === storedPage)) setSelectedPage(storedPage)
+        if (storedSection && SECTIONS.some(s => s.id === storedSection)) setSelectedSection(storedSection)
+      }
+    } catch {}
+  }, [])
+
+  // Sync selection to URL and localStorage
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(searchParams?.toString() || '')
+      params.set('page', selectedPage)
+      params.set('section', selectedSection)
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('admin.selectedPage', selectedPage)
+        localStorage.setItem('admin.selectedSection', selectedSection)
+      }
+    } catch {}
+  }, [selectedPage, selectedSection])
 
   useEffect(() => {
     checkAuth()
