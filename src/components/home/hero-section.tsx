@@ -9,15 +9,17 @@ import Image from 'next/image'
 
 const defaultHeroSlides: any[] = []
 
-export function HeroSection() {
-  const [heroSlides, setHeroSlides] = useState(defaultHeroSlides)
+export function HeroSection({ initialSlides = [] }: { initialSlides?: any[] }) {
+  const [heroSlides, setHeroSlides] = useState(initialSlides.length ? initialSlides : defaultHeroSlides)
+  const [loading, setLoading] = useState(initialSlides.length === 0)
   const [currentSlide, setCurrentSlide] = useState(0)
   const [isAutoPlaying, setIsAutoPlaying] = useState(true)
   const [mouseX, setMouseX] = useState(0)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Fetch uploaded images from database
+  // Fetch uploaded images from database (only if no initial slides)
   useEffect(() => {
+    if (!loading) return
     async function fetchHeroImages() {
       try {
         const response = await fetch('/api/site-images?section=hero')
@@ -38,6 +40,7 @@ export function HeroSection() {
           // Build slides directly from uploaded images with safe fallbacks
           const normalizedSlides = slideImages.map(({ index, img }: any) => ({
             id: index,
+            imageKey: img.imageKey,
             title: img.title || '',
             subtitle: img.metadata?.subtitle || '',
             tagline: img.metadata?.tagline || '',
@@ -55,17 +58,20 @@ export function HeroSection() {
           }))
 
           setHeroSlides(normalizedSlides)
+          setLoading(false)
         } else {
           setHeroSlides([])
+          setLoading(false)
         }
       } catch (error) {
         console.error('Failed to fetch hero images:', error)
         setHeroSlides([])
+        setLoading(false)
       }
     }
 
     fetchHeroImages()
-  }, [])
+  }, [loading])
 
   // Auto-scroll functionality
   useEffect(() => {
@@ -82,6 +88,24 @@ export function HeroSection() {
     }
   }, [isAutoPlaying, heroSlides.length])
 
+  // Record impression when center slide changes, throttled per session
+  useEffect(() => {
+    const slide = heroSlides[currentSlide]
+    if (!slide) return
+    try {
+      const key = `impression_${slide.imageKey || slide.id}`
+      const seen = typeof window !== 'undefined' ? sessionStorage.getItem(key) : '1'
+      if (!seen) {
+        sessionStorage.setItem(key, '1')
+        fetch('/api/engagement/hover', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageKey: slide.imageKey, hoverMs: 0, impressions: 1, clicks: 0 }),
+        }).catch(() => {})
+      }
+    } catch {}
+  }, [currentSlide, heroSlides])
+
   const nextSlide = () => {
     setCurrentSlide((prev) => (prev + 1) % heroSlides.length)
   }
@@ -95,7 +119,14 @@ export function HeroSection() {
   }
 
   if (heroSlides.length === 0) {
-    return null
+    // Show loader spinner to avoid blank while fetching
+    return (
+      <section className="relative w-full h-[460px] md:h-[620px] overflow-hidden bg-white mt-20 md:mt-28">
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="h-10 w-10 rounded-full border-2 border-gray-300 border-t-gray-900 animate-spin" aria-label="Loading hero" />
+        </div>
+      </section>
+    )
   }
   const currentSlideData = heroSlides[currentSlide]
 

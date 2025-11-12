@@ -326,7 +326,7 @@ export function Header() {
         </div>
 
         {/* Navigation Menu */}
-        <div className="hidden lg:block bg-white/70 backdrop-blur-md border-t border-gray-100/40">
+        <div className="hidden lg:block bg-gradient-to-b from-white/80 to-white/60 backdrop-blur-xl border-t border-champagne-gold/20">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <nav className="flex items-center justify-center space-x-1 py-4">
         {navigation.map((item, index) => {
