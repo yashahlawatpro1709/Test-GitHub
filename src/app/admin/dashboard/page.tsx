@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Crown, LogOut, Upload, Image as ImageIcon, Trash2, Save, Loader2, Diamond } from 'lucide-react'
+import { Crown, LogOut, Upload, Image as ImageIcon, Trash2, Save, Loader2, Diamond, ZoomIn } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import Image from 'next/image'
 
@@ -20,6 +20,7 @@ interface SiteImage {
   metadata?: any
   createdAt?: string
   updatedAt?: string
+  temp?: boolean
 }
 
 interface ImageMetadata {
@@ -184,6 +185,7 @@ export default function AdminDashboard() {
   const [selectedSection, setSelectedSection] = useState(SECTIONS[0].id)
   const [images, setImages] = useState<SiteImage[]>([])
   const [uploading, setUploading] = useState<string | null>(null)
+  const [uploadingSet, setUploadingSet] = useState<Set<string>>(new Set())
   const [imageKeys, setImageKeys] = useState<string[]>([])
   const [imageMetadata, setImageMetadata] = useState<ImageMetadata>({})
   const [sectionTitle, setSectionTitle] = useState<string>('Featured Collections')
@@ -191,10 +193,16 @@ export default function AdminDashboard() {
     "Discover our meticulously curated collections, where each piece embodies the perfect harmony of traditional craftsmanship and contemporary elegance, designed to celebrate life's most treasured moments."
   )
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; imageId: string | null }>({ show: false, imageId: null })
+const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState<{ show: boolean }>({ show: false })
+const [zoomPreview, setZoomPreview] = useState<{ show: boolean; url: string; alt: string }>({ show: false, url: '', alt: '' })
   const [dragSourceKey, setDragSourceKey] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [deletingAll, setDeletingAll] = useState(false)
   
   // Get current page sections
   const currentPageSections = PAGE_CATEGORIES.find(p => p.id === selectedPage)?.sections || []
+  // Empty-state for Hero section
+  const isHeroEmpty = selectedSection === 'hero' && images.filter(img => img.section === 'hero').length === 0
 
   // Initialize selected page/section from URL or localStorage
   useEffect(() => {
@@ -297,14 +305,120 @@ export default function AdminDashboard() {
     }
   }
 
+  const getSectionPrefix = (section: string) => {
+    return section === 'new-arrivals' ? 'product' : section === 'hero' ? 'slide' : 'collection'
+  }
+
+  const getMaxIndexFromKeys = (keys: string[], prefix: string) => {
+    const indices = keys
+      .map(k => {
+        const match = k.match(new RegExp(`^${prefix}-(\\d+)$`))
+        return match ? parseInt(match[1], 10) : 0
+      })
+      .filter(n => !isNaN(n))
+    return indices.length ? Math.max(...indices) : 0
+  }
+
   const addNewImageSlot = () => {
     const currentSection = SECTIONS.find(s => s.id === selectedSection)
     if (currentSection?.allowAdd) {
-      const nextNumber = imageKeys.length + 1
-      const prefix = selectedSection === 'new-arrivals' ? 'product' : selectedSection === 'hero' ? 'slide' : 'collection'
+      const prefix = getSectionPrefix(selectedSection)
+      const sectionImages = images.filter(img => img.section === selectedSection)
+      const existingKeys = sectionImages.map(img => img.imageKey)
+      const nextNumber = getMaxIndexFromKeys(existingKeys, prefix) + 1 || 1
       const newKey = `${prefix}-${nextNumber}`
-      setImageKeys([...imageKeys, newKey])
+      // If section is empty, start fresh; otherwise append
+      if (sectionImages.length === 0) {
+        setImageKeys([newKey])
+      } else {
+        setImageKeys([...imageKeys, newKey])
+      }
     }
+  }
+
+  const handleAddNewClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+      fileInputRef.current.click()
+    }
+  }
+
+  const deleteAllHeroImages = async () => {
+    if (selectedSection !== 'hero' || deletingAll) return
+
+    try {
+      setDeletingAll(true)
+      const currentSection = SECTIONS.find(s => s.id === selectedSection)
+      const defaultCount = currentSection?.defaultCount || 12
+      const prefix = getSectionPrefix(selectedSection)
+      const defaultKeys = Array.from({ length: defaultCount }, (_, i) => `${prefix}-${i + 1}`)
+
+      // Optimistic UI: clear images and reset keys immediately
+      setImages([])
+      setImageKeys(defaultKeys)
+
+      // Delete existing images in parallel (images already scoped to selectedSection)
+      const toDelete = images.filter(img => !img.temp)
+      await Promise.allSettled(
+        toDelete.map(img => fetch(`/api/admin/images?id=${encodeURIComponent(img.id)}`, { method: 'DELETE' }))
+      )
+
+      toast({ title: 'Deleted', description: `Removed ${toDelete.length} hero images.` })
+      // Refresh from server to ensure clean state
+      await loadImages()
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.message || 'Failed to delete all images', variant: 'destructive' })
+      await loadImages()
+    } finally {
+      setDeletingAll(false)
+    }
+  }
+
+  const handleMultiUpload = async (files: FileList) => {
+    const currentSection = SECTIONS.find(s => s.id === selectedSection)
+    if (!currentSection?.allowAdd || files.length === 0) return
+
+    const prefix = getSectionPrefix(selectedSection)
+    const sectionImages = images.filter(img => img.section === selectedSection)
+    const existingKeys = sectionImages.map(img => img.imageKey)
+    const startIndex = (getMaxIndexFromKeys(existingKeys, prefix) + 1) || 1
+    const fileArray = Array.from(files)
+    const newKeys = fileArray.map((_, i) => `${prefix}-${startIndex + i}`)
+
+    // Show slots and instant local previews
+    if (sectionImages.length === 0) {
+      setImageKeys(newKeys)
+    } else {
+      setImageKeys(prev => [...prev, ...newKeys])
+    }
+    newKeys.forEach((key, i) => {
+      const file = fileArray[i]
+      const previewUrl = URL.createObjectURL(file)
+      setImages(prev => {
+        const filtered = prev.filter(img => img.imageKey !== key)
+        return [
+          ...filtered,
+          { id: key, section: selectedSection, imageKey: key, url: previewUrl, alt: `${selectedSection} ${key}`, title: '', description: '', temp: true },
+        ]
+      })
+    })
+
+    // Parallel uploads with per-slot tracking
+    await Promise.all(
+      fileArray.map(async (file, i) => {
+        const key = newKeys[i]
+        setUploadingSet(prev => new Set(prev).add(key))
+        try {
+          await handleFileUpload(key, file)
+        } finally {
+          setUploadingSet(prev => {
+            const s = new Set(prev)
+            s.delete(key)
+            return s
+          })
+        }
+      })
+    )
   }
 
   const handleLogout = async () => {
@@ -1105,16 +1219,44 @@ export default function AdminDashboard() {
                 </p>
               </div>
               {currentSection?.allowAdd && (
-                <button
-                  onClick={addNewImageSlot}
-                  className="group relative px-6 py-3 border border-amber-400/60 bg-gradient-to-r from-amber-100 to-amber-50 hover:from-amber-200 hover:to-amber-100 transition-all duration-300 overflow-hidden shadow-md shadow-amber-500/10"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-amber-400/0 via-amber-400/20 to-amber-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                  <div className="relative flex items-center gap-2">
-                    <Upload className="w-3.5 h-3.5 text-amber-700" strokeWidth={1.5} />
-                    <span className="text-[10px] tracking-[0.25em] text-amber-700 uppercase font-light">Add New</span>
-                  </div>
-                </button>
+                <>
+                   <input
+                     type="file"
+                     multiple
+                     ref={fileInputRef}
+                     className="hidden"
+                     onChange={(e) => {
+                       if (e.target.files) {
+                         handleMultiUpload(e.target.files)
+                       }
+                     }}
+                   />
+                   <div className="flex items-center gap-3">
+                     <button
+                       onClick={handleAddNewClick}
+                       className="group relative px-6 py-3 border border-amber-400/60 bg-gradient-to-r from-amber-100 to-amber-50 hover:from-amber-200 hover:to-amber-100 transition-all duration-300 overflow-hidden shadow-md shadow-amber-500/10"
+                     >
+                       <div className="absolute inset-0 bg-gradient-to-r from-amber-400/0 via-amber-400/20 to-amber-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                       <div className="relative flex items-center gap-2">
+                         <Upload className="w-3.5 h-3.5 text-amber-700" strokeWidth={1.5} />
+                         <span className="text-[10px] tracking-[0.25em] text-amber-700 uppercase font-light">Add New</span>
+                       </div>
+                     </button>
+                     {selectedSection === 'hero' && (
+                       <button
+                         onClick={() => setBulkDeleteConfirm({ show: true })}
+                         disabled={deletingAll}
+                         className="group relative px-6 py-3 border border-red-300/60 bg-gradient-to-r from-red-100 to-red-50 hover:from-red-200 hover:to-red-100 transition-all duration-300 overflow-hidden shadow-md shadow-red-500/10 disabled:opacity-60"
+                       >
+                         <div className="absolute inset-0 bg-gradient-to-r from-red-400/0 via-red-400/20 to-red-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                         <div className="relative flex items-center gap-2">
+                           <Trash2 className="w-3.5 h-3.5 text-red-700" strokeWidth={1.5} />
+                           <span className="text-[10px] tracking-[0.25em] text-red-700 uppercase font-light">Delete All</span>
+                         </div>
+                       </button>
+                     )}
+                   </div>
+                 </>
               )}
             </div>
           </div>
@@ -1157,10 +1299,20 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" onDragOver={handleDragOverAutoScroll}>
+          {isHeroEmpty && (
+            <div className="mb-6 rounded-lg border border-amber-200/60 bg-amber-50/60 p-6 text-center">
+              <div className="mx-auto w-14 h-14 rounded-full bg-white border border-amber-200/60 flex items-center justify-center mb-3">
+                <ImageIcon className="w-7 h-7 text-amber-600/80" />
+              </div>
+              <p className="text-sm text-amber-800">No image present in the Hero image section.</p>
+              <p className="text-xs text-amber-700 mt-1">Click the <span className="font-medium">Add New</span> button to add images.</p>
+            </div>
+          )}
+
+          <div className={`${isHeroEmpty ? 'hidden' : ''} grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6`} onDragOver={handleDragOverAutoScroll}>
             {imageKeys.map((imageKey) => {
               const existingImage = images.find(img => img.imageKey === imageKey)
-              const isUploading = uploading === imageKey
+              const isUploading = uploading === imageKey || uploadingSet.has(imageKey)
 
               return (
                 <div key={imageKey} className="group relative bg-white border border-amber-200/60 hover:border-amber-400/60 transition-all duration-500 shadow-md shadow-amber-500/5 hover:shadow-lg hover:shadow-amber-500/10 overflow-hidden" draggable={selectedSection === 'hero' || selectedSection === 'featured-collections' || selectedSection === 'new-arrivals'} onDragStart={() => handleDragStart(imageKey)} onDragOver={handleDragOverAutoScroll} onDrop={() => handleDropSwap(imageKey)}>
@@ -2006,6 +2158,19 @@ export default function AdminDashboard() {
                       )}
                     </div>
 
+                    <div className="mt-2 flex justify-end">
+                      {existingImage && !existingImage.url.match(/\.(mp4|webm|mov|avi)$/i) && (
+                        <button
+                          type="button"
+                          className="flex items-center gap-1 px-3 py-1 text-[10px] tracking-[0.2em] uppercase font-light border border-amber-300 bg-white hover:bg-amber-50 text-amber-700 rounded transition-all duration-300"
+                          onClick={() => setZoomPreview({ show: true, url: existingImage.url, alt: existingImage.alt || imageKey })}
+                        >
+                          <ZoomIn className="w-3.5 h-3.5" />
+                          Zoom
+                        </button>
+                      )}
+                    </div>
+
                     {/* Upload and Save Buttons */}
                     <div className="space-y-2">
                       <input
@@ -2130,6 +2295,66 @@ export default function AdminDashboard() {
                 >
                   Delete
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal (Hero) */}
+      {bulkDeleteConfirm.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative bg-white rounded-lg shadow-2xl max-w-md w-full border border-amber-200/60 animate-in zoom-in-95 duration-200">
+            <div className="absolute top-0 left-0 w-20 h-20 border-l-2 border-t-2 border-amber-300/30"></div>
+            <div className="absolute bottom-0 right-0 w-20 h-20 border-r-2 border-b-2 border-amber-300/30"></div>
+            <div className="relative p-8">
+              <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-red-100 to-red-50 flex items-center justify-center mb-6 border border-red-200/60">
+                <Trash2 className="w-8 h-8 text-red-600" strokeWidth={1.5} />
+              </div>
+              <div className="text-center mb-8">
+                <h3 className="text-xl font-light tracking-wide text-slate-800 mb-3">Delete All Images</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">This action cannot be undone. All images in the hero section will be permanently removed.</p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setBulkDeleteConfirm({ show: false })}
+                  className="flex-1 px-6 py-3 border border-amber-300 bg-white hover:bg-amber-50 text-slate-700 font-medium transition-all duration-300 rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => { await deleteAllHeroImages(); setBulkDeleteConfirm({ show: false }) }}
+                  disabled={deletingAll}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white font-medium shadow-lg transition-all duration-300 rounded disabled:opacity-60"
+                >
+                  {deletingAll ? 'Deleting…' : 'Delete All'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Zoom Preview Modal */}
+      {zoomPreview.show && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="relative bg-white rounded-lg shadow-2xl max-w-5xl w-full border border-amber-200/60">
+            <div className="absolute top-0 left-0 w-20 h-20 border-l-2 border-t-2 border-amber-300/30"></div>
+            <div className="absolute bottom-0 right-0 w-20 h-20 border-r-2 border-b-2 border-amber-300/30"></div>
+
+            <div className="p-4 border-b border-amber-100 flex items-center justify-between">
+              <h3 className="text-sm tracking-[0.25em] uppercase text-amber-800">Image Preview</h3>
+              <button
+                className="text-xs tracking-[0.2em] uppercase px-3 py-1 border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 rounded"
+                onClick={() => setZoomPreview({ show: false, url: '', alt: '' })}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="relative p-6">
+              <div className="relative w-full h-[70vh] bg-slate-100 border border-amber-200 overflow-hidden rounded">
+                <img src={zoomPreview.url} alt={zoomPreview.alt || 'Zoom Preview'} className="w-full h-full object-contain" />
               </div>
             </div>
           </div>
