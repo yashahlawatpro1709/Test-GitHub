@@ -22,7 +22,14 @@ export function HeroSection({ initialSlides = [] }: { initialSlides?: any[] }) {
     if (!loading) return
     async function fetchHeroImages() {
       try {
-        const response = await fetch('/api/site-images?section=hero')
+        const timestamp = Date.now()
+        const response = await fetch(`/api/site-images?section=hero&t=${timestamp}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+          },
+        })
         const data = await response.json()
         
         if (data.images && data.images.length > 0) {
@@ -394,6 +401,7 @@ export function HeroSection({ initialSlides = [] }: { initialSlides?: any[] }) {
         >
           <ChevronLeft className="h-5 w-5 md:h-6 md:w-6 text-[#6B5A2E] group-hover:text-[#3D3118]" />
         </button>
+
         <button
           onClick={nextSlide}
           aria-label="Next slide"
@@ -403,29 +411,21 @@ export function HeroSection({ initialSlides = [] }: { initialSlides?: any[] }) {
         </button>
       </div>
 
-      {/* Navigation Dots */}
-      <div className="absolute bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 z-40 pointer-events-auto">
-        <div className="flex items-center gap-2.5 px-5 py-2 rounded-full bg-white/90 backdrop-blur-md shadow-lg border border-[#D4AF37]/30">
-          {heroSlides.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => goToSlide(index)}
-              aria-label={`Go to slide ${index + 1}`}
-              aria-current={index === currentSlide}
-              className={`w-2.5 h-2.5 rotate-45 transition-all duration-300 focus:outline-none focus:ring-1 focus:ring-[#D4AF37]/60 ${
-                index === currentSlide
-                  ? 'bg-[#D4AF37] ring-1 ring-[#D4AF37]/70 scale-110 shadow-sm'
-                  : 'bg-gray-400/70 hover:bg-gray-600'
-              }`}
-              style={{ clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)' }}
-            />
-          ))}
-        </div>
+      {/* Slide Indicators */}
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-40 flex items-center space-x-3 bg-white/70 backdrop-blur-md rounded-full px-6 py-3 shadow-lg">
+        {heroSlides.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => goToSlide(i)}
+            className={`h-2.5 w-2.5 rounded-full transition-all ${i === currentSlide ? 'bg-[#6B5A2E] w-6' : 'bg-gray-400 hover:bg-gray-500'} `}
+            aria-label={`Go to slide ${i + 1}`}
+          />
+        ))}
       </div>
 
-      {/* Luxury Brand Signature */}
+      {/* Premium Mark */}
       <motion.div
-        className="absolute bottom-12 right-12 z-20 text-right hidden"
+        className="absolute bottom-4 right-6 z-40 text-right"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 2, delay: 2 }}

@@ -1,59 +1,60 @@
-import { prisma } from '@/lib/prisma'
-import HeroSection from '@/components/home/hero-section'
+import React from 'react'
+import { PrismaClient } from '@prisma/client'
+import HeroSection from './hero-section'
 
-export const revalidate = 120
+// Force dynamic SSR so the hero reflects latest admin uploads
+export const dynamic = 'force-dynamic'
 
-// Server component: fetches hero slides on the server to avoid client-side delay
-export default async function HeroSectionServer() {
-  try {
-    const images = await prisma.siteImage.findMany({
-      where: { section: 'hero', isActive: true },
-      orderBy: { imageKey: 'asc' },
-      select: {
-        id: true,
-        imageKey: true,
-        url: true,
-        title: true,
-        description: true,
-        metadata: true,
-      },
-    })
+const prisma = new PrismaClient()
 
-    // Use slide-* ordering; if none present, use all hero images
-    const withIndex = images.map((img) => {
-      const match = img.imageKey?.match(/slide[-_]?(\d+)/i)
-      const index = match ? parseInt(match[1], 10) : NaN
+export async function HeroSectionServer() {
+  // Fetch active hero slides from DB, sorted by numeric imageKey
+  const images = await prisma.siteImage.findMany({
+    where: { section: 'hero', isActive: true },
+    orderBy: { imageKey: 'asc' },
+    select: {
+      id: true,
+      imageKey: true,
+      url: true,
+      title: true,
+      description: true,
+      metadata: true,
+    },
+  })
+
+  const slideImages = images
+    .filter((img) => typeof img.imageKey === 'string' && img.imageKey.toLowerCase().startsWith('slide'))
+    .map((img) => {
+      const match = img.imageKey.match(/slide[-_]?\s*(\d+)/i)
+      const index = match ? parseInt(match[1]!, 10) : NaN
       return { index, img }
     })
+    .filter(({ index }) => Number.isFinite(index))
+    .sort((a, b) => a.index - b.index)
 
-    const slideImages = withIndex.filter((x) => Number.isFinite(x.index)).sort((a, b) => a.index - b.index)
-    const base = slideImages.length ? slideImages.map((x) => x.img) : images
+  const normalizedSlides = slideImages.map(({ index, img }) => {
+    const meta: any = (img.metadata ?? {}) as any
+    return {
+      id: index,
+      imageKey: img.imageKey,
+      title: img.title || '',
+      subtitle: meta.subtitle || '',
+      tagline: meta.tagline || '',
+      collection: meta.collection || '',
+      description: img.description || '',
+      exclusiveOffer: meta.exclusiveOffer || '',
+      discount: meta.discount || '',
+      additionalOffer: meta.additionalOffer || '',
+      ctaText: meta.ctaText || 'Shop Now',
+      ctaLink: meta.ctaLink || '/collections',
+      mainImage: img.url,
+      backgroundGradient: meta.backgroundGradient || '',
+      accentColor: meta.accentColor || '',
+      theme: meta.theme || 'light',
+    }
+  })
 
-    const normalizedSlides = base.map((img, i) => {
-      const meta: any = (img.metadata ?? {}) as any
-      return {
-        id: i + 1,
-        imageKey: img.imageKey,
-        title: img.title || '',
-        subtitle: meta.subtitle || '',
-        tagline: meta.tagline || '',
-        collection: meta.collection || '',
-        description: img.description || '',
-        exclusiveOffer: meta.exclusiveOffer || '',
-        discount: meta.discount || '',
-        additionalOffer: meta.additionalOffer || '',
-        ctaText: meta.ctaText || 'Shop Now',
-        ctaLink: meta.ctaLink || '/collections',
-        mainImage: img.url,
-        backgroundGradient: meta.backgroundGradient || '',
-        accentColor: meta.accentColor || '',
-        theme: meta.theme || 'light',
-      }
-    })
-
-    return <HeroSection initialSlides={normalizedSlides} />
-  } catch (error) {
-    // On error, still render client with empty slides so it shows loader/fallback
-    return <HeroSection initialSlides={[]} />
-  }
+  return <HeroSection initialSlides={normalizedSlides} />
 }
+
+export default HeroSectionServer
