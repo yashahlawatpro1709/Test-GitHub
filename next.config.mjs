@@ -34,7 +34,8 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: '*.public.blob.vercel-storage.com',
+        // Allow any <store>.public.blob.vercel-storage.com subdomain used by Vercel Blob
+        hostname: '**.public.blob.vercel-storage.com',
         port: '',
         pathname: '/**',
       },
