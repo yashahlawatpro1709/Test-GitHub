@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Crown, LogOut, Upload, Image as ImageIcon, Trash2, Save, Loader2, Diamond, ZoomIn, GripVertical } from 'lucide-react'
+import { Crown, LogOut, Upload, Image as ImageIcon, Trash2, Save, Loader2, Diamond, ZoomIn, GripVertical, X } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import Image from 'next/image'
 
@@ -229,6 +229,8 @@ export default function AdminDashboard() {
   )
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; imageId: string | null }>({ show: false, imageId: null })
 const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState<{ show: boolean }>({ show: false })
+// Premium confirm for custom section deletion
+const [sectionDeleteConfirm, setSectionDeleteConfirm] = useState<{ show: boolean; sectionId: string | null; sectionName?: string }>({ show: false, sectionId: null })
 const [zoomPreview, setZoomPreview] = useState<{ show: boolean; url: string; alt: string }>({ show: false, url: '', alt: '' })
   const [dragSourceKey, setDragSourceKey] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -502,7 +504,87 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
     } catch {}
     setShowCustomBuilder(false)
     setCustomBuilder({ name: '' })
-    toast({ title: 'Section created', description: `Added "${name}" as a global section.` })
+    toast({ title: 'Section created', description: `Added \"${name}\" as a global section.` })
+  }
+
+  // Delete custom section and clean up related state
+  const handleDeleteCustomSection = (id: string) => {
+    try {
+      const section = customSections.find(s => s.id === id)
+      const label = section?.name || id
+      if (typeof window !== 'undefined') {
+        const ok = window.confirm(`Delete custom section \"${label}\"? This will remove it from the admin and site navigation.`)
+        if (!ok) return
+      }
+      // Update custom sections
+      const updated = customSections.filter(s => s.id !== id)
+      setCustomSections(updated)
+      try { if (typeof window !== 'undefined') localStorage.setItem('admin.customSections', JSON.stringify(updated)) } catch {}
+
+      // Remove custom fields config/values for this section
+      setCustomFieldsConfig(prev => {
+        const { [id]: _removedCfg, ...rest } = prev
+        try { if (typeof window !== 'undefined') localStorage.setItem('admin.customFieldsConfig', JSON.stringify(rest)) } catch {}
+        return rest
+      })
+      setCustomFieldValues(prev => {
+        const { [id]: _removedVals, ...rest } = prev
+        try { if (typeof window !== 'undefined') localStorage.setItem('admin.customFieldsValues', JSON.stringify(rest)) } catch {}
+        return rest
+      })
+
+      // If currently selected is the deleted section, switch to a safe fallback
+      const deletedPageId = `${id}-page`
+      if (selectedPage === deletedPageId) {
+        const fallbackPage = PAGE_CATEGORIES[0]
+        setSelectedPage(fallbackPage.id)
+        setSelectedSection(fallbackPage.sections[0].id)
+      } else if (selectedSection === id) {
+        const currentPage = ALL_PAGES.find(p => p.id === selectedPage)
+        const fallbackSection = currentPage?.sections?.[0]?.id || PAGE_CATEGORIES[0].sections[0].id
+        setSelectedSection(fallbackSection)
+      }
+
+      toast({ title: 'Section deleted', description: `Removed \"${label}\" from admin and navigation.` })
+    } catch (err) {
+      console.error('Delete custom section failed:', err)
+      toast({ title: 'Delete failed', description: 'Could not delete this section.' })
+    }
+  }
+
+  // Execute deletion without native confirm (used by premium modal)
+  const performDeleteCustomSection = (id: string) => {
+    try {
+      const section = customSections.find(s => s.id === id)
+      const label = section?.name || id
+      const updated = customSections.filter(s => s.id !== id)
+      setCustomSections(updated)
+      try { if (typeof window !== 'undefined') localStorage.setItem('admin.customSections', JSON.stringify(updated)) } catch {}
+      setCustomFieldsConfig(prev => {
+        const { [id]: _removedCfg, ...rest } = prev
+        try { if (typeof window !== 'undefined') localStorage.setItem('admin.customFieldsConfig', JSON.stringify(rest)) } catch {}
+        return rest
+      })
+      setCustomFieldValues(prev => {
+        const { [id]: _removedVals, ...rest } = prev
+        try { if (typeof window !== 'undefined') localStorage.setItem('admin.customFieldsValues', JSON.stringify(rest)) } catch {}
+        return rest
+      })
+      const deletedPageId = `${id}-page`
+      if (selectedPage === deletedPageId) {
+        const fallbackPage = PAGE_CATEGORIES[0]
+        setSelectedPage(fallbackPage.id)
+        setSelectedSection(fallbackPage.sections[0].id)
+      } else if (selectedSection === id) {
+        const currentPage = ALL_PAGES.find(p => p.id === selectedPage)
+        const fallbackSection = currentPage?.sections?.[0]?.id || PAGE_CATEGORIES[0].sections[0].id
+        setSelectedSection(fallbackSection)
+      }
+      toast({ title: 'Section deleted', description: `Removed "${label}" from admin and navigation.` })
+    } catch (err) {
+      console.error('Delete custom section failed:', err)
+      toast({ title: 'Delete failed', description: 'Could not delete this section.' })
+    }
   }
 
   // Empty-state for Hero section
@@ -1652,29 +1734,86 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
           <div className="mb-8 bg-white border border-amber-200/60 rounded-md shadow-sm p-6">
             <h3 className="text-[10px] tracking-[0.25em] text-slate-700 uppercase font-light mb-4">Jewelry Data Distributor</h3>
 
-            {/* ETL Flow Animation (compact) */}
+            {/* ETL Flow Animation */}
             <div className="relative mb-6 rounded-xl border border-amber-200/70 bg-gradient-to-r from-white via-amber-50/70 to-white shadow-sm">
+              {/* Premium SVG flow with gradient connectors */}
               <div className="relative px-6 py-5">
                 <div className="flex items-center justify-between">
+                  {/* Source */}
                   <div className="flex items-center gap-3">
                     <div className="h-11 w-11 rounded-lg bg-amber-600 text-white flex items-center justify-center shadow-md">
-                      <Upload className="w-5 h-5" />
+                      <ImageIcon className="w-5 h-5" />
                     </div>
                     <div>
-                      <p className="text-[10px] tracking-[0.25em] uppercase text-slate-700">Source</p>
-                      <p className="text-[9px] tracking-[0.2em] uppercase text-slate-500">Jewelry Data Distributor</p>
+                      <div className="text-[9px] tracking-[0.25em] text-slate-600 uppercase">Source</div>
+                      <div className="text-sm font-semibold text-slate-800">Jewelry Data Distributor</div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="h-0.5 w-20 bg-gradient-to-r from-amber-300 to-amber-500 animate-pulse"></div>
-                    <Diamond className="w-4 h-4 text-amber-700" />
+
+                  {/* Transform */}
+                  <div className="flex flex-col items-center">
+                    <div className="h-14 w-14 rounded-full bg-amber-100/60 border border-amber-300 flex items-center justify-center shadow-md">
+                      <Loader2 className="w-6 h-6 text-amber-700 animate-spin" style={{ animationDuration: distributorUploading ? '1s' : '2.6s' }} />
+                    </div>
+                    <div className="text-[9px] tracking-[0.25em] text-slate-600 uppercase mt-1">Transform</div>
                   </div>
-                  <div>
-                    <p className="text-[10px] tracking-[0.25em] uppercase text-slate-700">Destination</p>
-                    <p className="text-[9px] tracking-[0.2em] uppercase text-slate-500">Selected sections</p>
+
+                  {/* Destination */}
+                  <div className="text-right">
+                    <div className="text-[9px] tracking-[0.25em] text-slate-600 uppercase mb-1">Destination</div>
+                    <div className="flex flex-wrap gap-2 justify-end">
+                      {distributorForm.targetSections.length === 0 ? (
+                        <span className="text-xs text-slate-500">Select sections</span>
+                      ) : (
+                        distributorForm.targetSections.map(sec => (
+                          <span key={sec} className="px-3 py-1 text-[11px] rounded-full bg-white border border-amber-300 text-amber-800 shadow-sm backdrop-blur-sm animate-fade-in">
+                            {sec}
+                          </span>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
+
+                {/* SVG connectors */}
+                <svg className="absolute inset-0" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="etlGradient" x1="0" x2="1" y1="0" y2="0">
+                      <stop offset="0%" stopColor="#f59e0b" />
+                      <stop offset="50%" stopColor="#0ea5e9" />
+                      <stop offset="100%" stopColor="#f59e0b" />
+                    </linearGradient>
+                  </defs>
+                  {/* Smooth premium lines aligned to selected destinations */}
+                  {(distributorForm.targetSections.length ? distributorForm.targetSections.map((_, i) => Math.min(90, 30 + i * 30)) : [30, 60, 90]).map((y, i) => (
+                    <path key={`line-${y}-${i}`} d={`M 140 ${y} C 420 ${y}, 780 ${y}, 1060 ${y}`} stroke="url(#etlGradient)" strokeWidth="2.5" fill="none" className="opacity-60 animate-line" />
+                  ))}
+                  {/* Moving particles to suggest flow */}
+                  {(distributorForm.targetSections.length ? distributorForm.targetSections.map((_, i) => Math.min(90, 30 + i * 30)) : [30, 60, 90]).map((y, i) => (
+                    <circle key={`p-${y}-${i}`} cx={140} cy={y} r="3" fill="#f59e0b" className={`animate-particle delay-[${i*200}ms]`} />
+                  ))}
+                </svg>
               </div>
+
+              <style jsx>{`
+                @keyframes linePulse {
+                  0% { opacity: 0.4; }
+                  50% { opacity: 0.8; }
+                  100% { opacity: 0.4; }
+                }
+                @keyframes particleMove {
+                  0% { transform: translateX(0); opacity: 0.6; }
+                  50% { opacity: 1; }
+                  100% { transform: translateX(920px); opacity: 0.6; }
+                }
+                .animate-line { animation: linePulse ${distributorUploading ? '1.2s' : '2.6s'} ease-in-out infinite; }
+                .animate-particle { animation: particleMove ${distributorUploading ? '1.8s' : '3.4s'} linear infinite; }
+                .animate-fade-in { animation: fadeIn 300ms ease-out both; }
+                @keyframes fadeIn {
+                  from { opacity: 0; transform: translateY(4px); }
+                  to { opacity: 1; transform: translateY(0); }
+                }
+              `}</style>
             </div>
 
             {/* Basic distributor form */}
@@ -1784,6 +1923,17 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
                         }
                       `}
                     >
+                      {/* Delete X button */}
+                      <button
+                        type="button"
+                        aria-label="Delete custom section"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSectionDeleteConfirm({ show: true, sectionId: page.sections[0].id, sectionName: page.name }) }}
+                        className="absolute top-2 right-2 p-1 rounded-full border border-amber-300/60 text-amber-700 hover:bg-amber-50 hover:text-amber-900 transition-colors"
+                        title="Delete"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+
                       {/* Active Indicator */}
                       {selectedPage === page.id && (
                         <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-champagne-gold to-transparent"></div>
@@ -3982,6 +4132,41 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
                 </button>
                 <button
                   onClick={() => deleteConfirm.imageId && handleDeleteImage(deleteConfirm.imageId)}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white font-medium shadow-lg transition-all duration-300 rounded"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Section Delete Confirmation Modal */}
+      {sectionDeleteConfirm.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative bg-white rounded-lg shadow-2xl max-w-md w-full border border-amber-200/60 animate-in zoom-in-95 duration-200">
+            <div className="absolute top-0 left-0 w-20 h-20 border-l-2 border-t-2 border-amber-300/30"></div>
+            <div className="absolute bottom-0 right-0 w-20 h-20 border-r-2 border-b-2 border-amber-300/30"></div>
+            <div className="relative p-8">
+              <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-red-100 to-red-50 flex items-center justify-center mb-6 border border-red-200/60">
+                <Trash2 className="w-8 h-8 text-red-600" strokeWidth={1.5} />
+              </div>
+              <div className="text-center mb-8">
+                <h3 className="text-xl font-light tracking-wide text-slate-800 mb-3">Delete Section</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  This action cannot be undone. The section {sectionDeleteConfirm.sectionName ? `"${sectionDeleteConfirm.sectionName}" ` : ''}will be permanently removed from the admin and site navigation.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setSectionDeleteConfirm({ show: false, sectionId: null })}
+                  className="flex-1 px-6 py-3 border border-amber-300 bg-white hover:bg-amber-50 text-slate-700 font-medium transition-all duration-300 rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => { if (sectionDeleteConfirm.sectionId) { /* call deletion without confirm */ performDeleteCustomSection(sectionDeleteConfirm.sectionId); } setSectionDeleteConfirm({ show: false, sectionId: null }) }}
                   className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white font-medium shadow-lg transition-all duration-300 rounded"
                 >
                   Delete
