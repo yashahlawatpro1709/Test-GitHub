@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Crown, LogOut, Upload, Image as ImageIcon, Trash2, Save, Loader2, Diamond, ZoomIn } from 'lucide-react'
+import { Crown, LogOut, Upload, Image as ImageIcon, Trash2, Save, Loader2, Diamond, ZoomIn, GripVertical } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import Image from 'next/image'
 
@@ -59,6 +59,33 @@ interface Admin {
   username: string
   name?: string
   email?: string
+}
+
+interface PageDefSection {
+  id: string
+  name: string
+  keys: string[]
+  allowAdd?: boolean
+  defaultCount?: number
+  hasJewelryDetails?: boolean
+  hasHeroText?: boolean
+  hasProductDetails?: boolean
+}
+
+interface PageDef {
+  id: string
+  name: string
+  description: string
+  sections: PageDefSection[]
+}
+
+// Custom fields builder types (only for custom sections)
+interface CustomFieldDef {
+  id: string
+  label: string
+  type: 'text' | 'dropdown'
+  options?: string[]
+  required?: boolean
 }
 
 // Organized page structure
@@ -172,17 +199,25 @@ const PAGE_CATEGORIES = [
       { id: 'more-collections', name: 'More Collections', keys: [], allowAdd: true, defaultCount: 12, hasJewelryDetails: true },
     ]
   },
+  {
+    id: 'distributor-page',
+    name: 'Jewelry Data Distributor',
+    description: 'Central upload hub',
+    sections: [
+      { id: 'jewelry-data-distributor', name: 'Jewelry Data Distributor', keys: [], allowAdd: false }
+    ]
+  },
 ]
 
 // Flatten all sections for backward compatibility
-const SECTIONS = PAGE_CATEGORIES.flatMap(page => page.sections)
+const BASE_SECTIONS = PAGE_CATEGORIES.flatMap(page => page.sections)
 
 export default function AdminDashboard() {
   const router = useRouter()
   const [admin, setAdmin] = useState<Admin | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedPage, setSelectedPage] = useState(PAGE_CATEGORIES[0].id)
-  const [selectedSection, setSelectedSection] = useState(SECTIONS[0].id)
+  const [selectedSection, setSelectedSection] = useState(BASE_SECTIONS[0].id)
   const [images, setImages] = useState<SiteImage[]>([])
   const [uploading, setUploading] = useState<string | null>(null)
   const [uploadingSet, setUploadingSet] = useState<Set<string>>(new Set())
@@ -198,9 +233,278 @@ const [zoomPreview, setZoomPreview] = useState<{ show: boolean; url: string; alt
   const [dragSourceKey, setDragSourceKey] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [deletingAll, setDeletingAll] = useState(false)
+  const [showDistributor, setShowDistributor] = useState(false)
+  const [showCustomBuilder, setShowCustomBuilder] = useState(false)
+const distributorInputRef = useRef<HTMLInputElement>(null)
+  const [distributorUploading, setDistributorUploading] = useState(false)
+  const [distributorUploads, setDistributorUploads] = useState<{ id: string; url: string; section: string; imageKey: string }[]>([])
   
-  // Get current page sections
-  const currentPageSections = PAGE_CATEGORIES.find(p => p.id === selectedPage)?.sections || []
+  // Distributor form state
+  const [distributorForm, setDistributorForm] = useState({
+    jewelryType: '',
+    subtype: '',
+    category: '',
+    targetSections: [] as string[],
+    diamond: { cut: '', color: '', clarity: '', carat: '' },
+    gold: { purity: '', colorFinish: '', weight: '', designStyle: '' },
+    polki: { goldPurity: '', polkiSize: '', polkiCount: '', typeCategory: '', designStyle: '', weight: '', finishPlating: '' }
+  })
+
+  useEffect(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('admin.distributorForm') : null
+      if (saved) setDistributorForm(JSON.parse(saved))
+    } catch {}
+  }, [])
+  
+  // Custom sections: state + persistence
+  const [customSections, setCustomSections] = useState<{ id: string; name: string; pageId?: string }[]>([])
+  const customInitRef = useRef(false)
+
+  useEffect(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('admin.customSections') : null
+      if (saved) setCustomSections(JSON.parse(saved))
+    } catch {}
+    customInitRef.current = true
+  }, [])
+
+  useEffect(() => {
+    // Avoid clobbering saved data on first mount before initialization
+    if (!customInitRef.current) return
+    try {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('admin.customSections')
+        // If we have saved data and current state is empty, skip writing
+        if (saved && customSections.length === 0) return
+        localStorage.setItem('admin.customSections', JSON.stringify(customSections))
+      }
+    } catch {}
+  }, [customSections])
+
+  // Combine base sections and custom sections
+  const SECTIONS = useMemo(() => {
+    const customAsSections = customSections.map(s => ({
+      id: s.id,
+      name: s.name,
+      keys: [],
+      allowAdd: true,
+      defaultCount: 12,
+      hasJewelryDetails: true,
+    }))
+    return [...BASE_SECTIONS, ...customAsSections]
+  }, [customSections])
+
+  // Build custom pages from custom sections for top navbar
+  const CUSTOM_PAGES = useMemo<PageDef[]>(() => customSections.map(s => ({
+    id: `${s.id}-page`,
+    name: s.name,
+    description: 'Custom Section',
+    sections: [
+      { id: s.id, name: s.name, keys: [], allowAdd: true, defaultCount: 12, hasJewelryDetails: true }
+    ]
+  })), [customSections])
+
+  // Combine predefined pages and custom pages
+  const ALL_PAGES = useMemo<PageDef[]>(() => ([...(PAGE_CATEGORIES as PageDef[]), ...CUSTOM_PAGES]), [CUSTOM_PAGES])
+
+  // Custom Fields: per-section configuration and values (only for custom sections)
+  const [customFieldsConfig, setCustomFieldsConfig] = useState<Record<string, CustomFieldDef[]>>({})
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, Record<string, Record<string, string>>>>({})
+  const fieldsInitRef = useRef(false)
+
+  useEffect(() => {
+    try {
+      const savedCfg = typeof window !== 'undefined' ? localStorage.getItem('admin.customFieldsConfig') : null
+      const savedVals = typeof window !== 'undefined' ? localStorage.getItem('admin.customFieldsValues') : null
+      if (savedCfg) setCustomFieldsConfig(JSON.parse(savedCfg))
+      if (savedVals) setCustomFieldValues(JSON.parse(savedVals))
+    } catch {}
+    fieldsInitRef.current = true
+  }, [])
+
+  useEffect(() => {
+    if (!fieldsInitRef.current) return
+    try {
+      if (typeof window !== 'undefined') {
+        const existing = localStorage.getItem('admin.customFieldsConfig')
+        if (existing && Object.keys(customFieldsConfig).length === 0) return
+        localStorage.setItem('admin.customFieldsConfig', JSON.stringify(customFieldsConfig))
+      }
+    } catch {}
+  }, [customFieldsConfig])
+
+  useEffect(() => {
+    if (!fieldsInitRef.current) return
+    try {
+      if (typeof window !== 'undefined') {
+        const existing = localStorage.getItem('admin.customFieldsValues')
+        if (existing && Object.keys(customFieldValues).length === 0) return
+        localStorage.setItem('admin.customFieldsValues', JSON.stringify(customFieldValues))
+      }
+    } catch {}
+  }, [customFieldValues])
+
+  const isCustomSelected = useMemo(() => customSections.some(s => s.id === selectedSection), [customSections, selectedSection])
+
+  const getFieldsForSection = (sectionId: string) => customFieldsConfig[sectionId] || []
+
+  const addField = (sectionId: string, type: CustomFieldDef['type'] = 'text') => {
+    const label = type === 'text' ? 'Text Field' : 'Dropdown Field'
+    const id = slugify(`${label}-${Date.now()}`)
+    const newField: CustomFieldDef = { id, label, type, options: type === 'dropdown' ? ['Option 1'] : undefined }
+    const next = { ...customFieldsConfig, [sectionId]: [...getFieldsForSection(sectionId), newField] }
+    setCustomFieldsConfig(next)
+  }
+
+  const updateField = (sectionId: string, fieldId: string, patch: Partial<CustomFieldDef>) => {
+    const next = getFieldsForSection(sectionId).map(f => f.id === fieldId ? { ...f, ...patch } : f)
+    setCustomFieldsConfig({ ...customFieldsConfig, [sectionId]: next })
+  }
+
+  const removeField = (sectionId: string, fieldId: string) => {
+    const next = getFieldsForSection(sectionId).filter(f => f.id !== fieldId)
+    setCustomFieldsConfig({ ...customFieldsConfig, [sectionId]: next })
+  }
+
+  const addDropdownOption = (sectionId: string, fieldId: string, option: string) => {
+    const field = getFieldsForSection(sectionId).find(f => f.id === fieldId)
+    if (!field) return
+    const opts = [...(field.options || []), option]
+    updateField(sectionId, fieldId, { options: opts })
+  }
+
+  const removeDropdownOption = (sectionId: string, fieldId: string, option: string) => {
+    const field = getFieldsForSection(sectionId).find(f => f.id === fieldId)
+    if (!field) return
+    const opts = (field.options || []).filter(o => o !== option)
+    updateField(sectionId, fieldId, { options: opts })
+  }
+
+  // Per-card value helpers
+  const getValueForCard = (sectionId: string, imageKey: string, fieldId: string) => {
+    const sectionVals = customFieldValues[sectionId] || {}
+    const cardVals = sectionVals[imageKey] || {}
+    // Fallback: support old schema where values were section-level
+    const legacy = (sectionVals as any)[fieldId]
+    return (cardVals[fieldId] ?? legacy ?? '')
+  }
+
+  const setValue = (sectionId: string, imageKey: string, fieldId: string, value: string) => {
+    const sectionVals = customFieldValues[sectionId] || {}
+    const cardVals = sectionVals[imageKey] || {}
+    const next = {
+      ...customFieldValues,
+      [sectionId]: {
+        ...sectionVals,
+        [imageKey]: { ...cardVals, [fieldId]: value }
+      }
+    }
+    setCustomFieldValues(next)
+  }
+
+  // Drag & drop reordering for custom fields
+  const [draggingFieldId, setDraggingFieldId] = useState<string | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  const [ripple, setRipple] = useState<{ index: number; x: number; y: number; id: number } | null>(null)
+
+  const reorderFields = (sectionId: string, fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return
+    const list = [...getFieldsForSection(sectionId)]
+    const [moved] = list.splice(fromIndex, 1)
+    list.splice(toIndex, 0, moved)
+    const next = { ...customFieldsConfig, [sectionId]: list }
+    setCustomFieldsConfig(next)
+  }
+
+  const onFieldDragStart = (index: number, fieldId: string) => {
+    setDraggingFieldId(fieldId)
+    try { if (navigator?.vibrate) navigator.vibrate(10) } catch {}
+  }
+
+  const onFieldDrop = (dropIndex: number, e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    if (!draggingFieldId) return
+    const fromIndex = getFieldsForSection(selectedSection).findIndex(f => f.id === draggingFieldId)
+    if (fromIndex < 0) { setDraggingFieldId(null); setDragOverIndex(null); return }
+    reorderFields(selectedSection, fromIndex, dropIndex)
+
+    // Water ripple effect (premium micro-interaction)
+    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    setRipple({ index: dropIndex, x, y, id: Date.now() })
+    setTimeout(() => setRipple(null), 700)
+
+    setDraggingFieldId(null)
+    setDragOverIndex(null)
+  }
+
+  const onFieldDragOver = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    e.preventDefault()
+    setDragOverIndex(index)
+  }
+
+  const onFieldDragLeave = () => {
+    setDragOverIndex(null)
+  }
+
+  // Preview/Save controls for custom sections
+  const [showPreview, setShowPreview] = useState(true)
+  const [saveNotice, setSaveNotice] = useState('')
+  const manualSave = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('admin.customFieldsConfig', JSON.stringify(customFieldsConfig))
+        localStorage.setItem('admin.customFieldsValues', JSON.stringify(customFieldValues))
+      }
+      setSaveNotice('Saved custom fields for this section.')
+      setTimeout(() => setSaveNotice(''), 2000)
+    } catch {}
+  }
+  
+  // Get current page sections (including custom)
+  const currentPageSections = useMemo(() => {
+    const base = PAGE_CATEGORIES.find(p => p.id === selectedPage)?.sections || []
+    const customs = customSections.map(s => ({ id: s.id, name: s.name, keys: [], allowAdd: true, defaultCount: 12, hasJewelryDetails: true }))
+    return [...base, ...customs]
+  }, [selectedPage, customSections])
+  // Custom section builder state and handler
+  const [customBuilder, setCustomBuilder] = useState<{ name: string }>({ name: '' })
+  const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+  const handleCreateCustomSection = () => {
+    const name = (customBuilder.name || '').trim()
+    if (!name) {
+      toast({ title: 'Enter a name', description: 'Please provide a section name.' })
+      return
+    }
+    const id = slugify(name)
+    if (!id) {
+      toast({ title: 'Invalid name', description: 'Name must include letters or numbers.' })
+      return
+    }
+    if (SECTIONS.some((s: any) => s.id === id)) {
+      toast({ title: 'Section exists', description: 'Choose a different name.' })
+      return
+    }
+    const updated = [...customSections, { id, name }]
+    setCustomSections(updated)
+    // Persist immediately to avoid losing on quick refresh
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('admin.customSections', JSON.stringify(updated))
+      }
+    } catch {}
+    setSelectedSection(id)
+    // Keep URL in sync so refresh restores the custom section selection
+    try {
+      router.replace(`/admin/dashboard?page=${selectedPage}&section=${id}`)
+    } catch {}
+    setShowCustomBuilder(false)
+    setCustomBuilder({ name: '' })
+    toast({ title: 'Section created', description: `Added "${name}" as a global section.` })
+  }
+
   // Empty-state for Hero section
   const isHeroEmpty = selectedSection === 'hero' && images.filter(img => img.section === 'hero').length === 0
 
@@ -210,18 +514,18 @@ const [zoomPreview, setZoomPreview] = useState<{ show: boolean; url: string; alt
       const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
       const pageParam = params ? params.get('page') : null
       const sectionParam = params ? params.get('section') : null
-      const validPage = !!pageParam && PAGE_CATEGORIES.some(p => p.id === pageParam)
+      const validPage = !!pageParam && ALL_PAGES.some(p => p.id === pageParam)
       const validSection = !!sectionParam && SECTIONS.some(s => s.id === sectionParam)
       if (validPage) setSelectedPage(pageParam as string)
       if (validSection) setSelectedSection(sectionParam as string)
       if (!validPage || !validSection) {
         const storedPage = typeof window !== 'undefined' ? localStorage.getItem('admin.selectedPage') : null
         const storedSection = typeof window !== 'undefined' ? localStorage.getItem('admin.selectedSection') : null
-        if (storedPage && PAGE_CATEGORIES.some(p => p.id === storedPage)) setSelectedPage(storedPage)
+        if (storedPage && ALL_PAGES.some(p => p.id === storedPage)) setSelectedPage(storedPage)
         if (storedSection && SECTIONS.some(s => s.id === storedSection)) setSelectedSection(storedSection)
       }
     } catch {}
-  }, [])
+  }, [SECTIONS, ALL_PAGES])
 
   // Sync selection to URL and localStorage
   useEffect(() => {
@@ -524,11 +828,39 @@ const [zoomPreview, setZoomPreview] = useState<{ show: boolean; url: string; alt
         metadataToSave.originalPrice = metadata.originalPrice || null
         // Classification fields
         metadataToSave.jewelryCategory = (metadata as any).jewelryCategory || metadata.category || null
+        // Common ring fields
+        metadataToSave.ringSubtype = (metadata as any).ringSubtype || null
+        metadataToSave.smallDescription = (metadata as any).smallDescription || null
+        metadataToSave.largeDescription = (metadata as any).largeDescription || null
         // Diamond-specific fields
         metadataToSave.cut = (metadata as any).cut || null
         metadataToSave.clarity = (metadata as any).clarity || null
         metadataToSave.color = (metadata as any).color || null
+        metadataToSave.carat = (metadata as any).carat || metadata.diamondCarat || null
         metadataToSave.detailedDescription = (metadata as any).detailedDescription || null
+        // Gold-specific fields
+        metadataToSave.purityKarat = (metadata as any).purityKarat || metadata.purity || null
+        metadataToSave.colorFinish = (metadata as any).colorFinish || null
+        metadataToSave.typeCategory = (metadata as any).typeCategory || metadata.category || null
+        metadataToSave.weight = (metadata as any).weight || null
+        metadataToSave.designStyle = (metadata as any).designStyle || null
+        // Polki-specific fields
+      metadataToSave.goldPurity = (metadata as any).goldPurity || null
+      metadataToSave.polkiSizeOrCount = (metadata as any).polkiSizeOrCount || null
+      metadataToSave.finishPlating = (metadata as any).finishPlating || null
+      }
+
+      // Persist custom fields for custom sections
+      if (isCustomSelected) {
+        const sectionFields = getFieldsForSection(selectedSection)
+        const valsForCard = (customFieldValues[selectedSection] || {})[imageKey] || {}
+        const customFieldsPayload = sectionFields.map((f) => ({
+          id: f.id,
+          label: f.label,
+          type: f.type,
+          value: (valsForCard as any)[f.id] ?? ''
+        })).filter((cf) => typeof cf.value === 'string' ? cf.value.trim() !== '' : !!cf.value)
+        metadataToSave.customFields = customFieldsPayload
       }
 
       // Save to database
@@ -565,6 +897,116 @@ const [zoomPreview, setZoomPreview] = useState<{ show: boolean; url: string; alt
       })
     } finally {
       setUploading(null)
+    }
+  }
+
+  const handleDistributorUpload = async (files: FileList) => {
+    if (!files || files.length === 0) return
+    if (distributorForm.targetSections.length === 0) {
+      toast({ title: 'Select sections', description: 'Please choose target sections first.', variant: 'destructive' })
+      return
+    }
+
+    const validTypes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif',
+      'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'
+    ]
+
+    setDistributorUploading(true)
+    try {
+      const fileArray = Array.from(files)
+      for (const file of fileArray) {
+        if (!validTypes.includes(file.type)) {
+          toast({ title: 'Invalid file', description: 'Upload JPG/PNG/WebP/GIF or MP4/WebM/MOV/AVI.', variant: 'destructive' })
+          continue
+        }
+        const isVideo = file.type.startsWith('video/')
+        const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024
+        if (file.size > maxSize) {
+          toast({ title: 'Too large', description: `File exceeds ${isVideo ? '50MB' : '10MB'}`, variant: 'destructive' })
+          continue
+        }
+
+        for (const targetSection of distributorForm.targetSections) {
+          try {
+            const prefix = getSectionPrefix(targetSection)
+            const existingResp = await fetch(`/api/admin/images?section=${targetSection}`)
+            const existingData = await existingResp.json()
+            const existingKeys = (existingData.images || []).map((img: SiteImage) => img.imageKey)
+            const nextIndex = (getMaxIndexFromKeys(existingKeys, prefix) + 1) || 1
+            const imageKey = `${prefix}-${nextIndex}`
+
+            const formData = new FormData()
+            formData.append('file', file)
+            formData.append('folder', `aashni/${targetSection}`)
+            const uploadResponse = await fetch('/api/admin/upload', { method: 'POST', body: formData })
+            const uploadData = await uploadResponse.json()
+            if (!uploadResponse.ok) throw new Error(uploadData.error || 'Upload failed')
+
+            const metadataToSave: any = {
+              width: uploadData.width,
+              height: uploadData.height,
+              publicId: uploadData.publicId,
+              category: distributorForm.category || null,
+              jewelryCategory: distributorForm.category || null,
+              jewelryType: distributorForm.jewelryType || null,
+              jewelrySubType: distributorForm.subtype || null,
+            }
+
+            const jewelrySections = ['luxury-jewelry', 'gold-jewelry', 'diamond-jewelry', 'earrings', 'rings', 'bracelets', 'bangles', 'pendants', 'daily-wear', 'gifting', 'wedding', 'more-collections', 'all-jewelry']
+            if (jewelrySections.includes(targetSection)) {
+              if (distributorForm.subtype === 'diamond') {
+                metadataToSave.cut = distributorForm.diamond.cut || null
+                metadataToSave.clarity = distributorForm.diamond.clarity || null
+                metadataToSave.color = distributorForm.diamond.color || null
+                metadataToSave.diamondCarat = distributorForm.diamond.carat || null
+              }
+              if (distributorForm.subtype === 'gold') {
+                metadataToSave.purity = distributorForm.gold.purity || null
+                metadataToSave.metal = distributorForm.gold.colorFinish || null
+                metadataToSave.weight = distributorForm.gold.weight || null
+                metadataToSave.designStyle = distributorForm.gold.designStyle || null
+              }
+              if (distributorForm.subtype === 'polki') {
+                metadataToSave.purity = distributorForm.polki.goldPurity || null
+                metadataToSave.polkiSize = distributorForm.polki.polkiSize || null
+                metadataToSave.weight = distributorForm.polki.weight || null
+                metadataToSave.finishPlating = distributorForm.polki.finishPlating || null
+                metadataToSave.designStyle = distributorForm.polki.designStyle || null
+              }
+            }
+
+            const saveResponse = await fetch('/api/admin/images', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                section: targetSection,
+                imageKey,
+                url: uploadData.url,
+                alt: `${targetSection} ${imageKey}`,
+                title: null,
+                description: null,
+                metadata: metadataToSave,
+              }),
+            })
+            const saveData = await saveResponse.json()
+            if (!saveResponse.ok) throw new Error(saveData.error || 'Failed to save image')
+
+            toast({ title: 'Uploaded', description: `Added to ${targetSection}` })
+            setDistributorUploads(prev => [...prev, { id: saveData.image?.id || '', url: uploadData.url, section: targetSection, imageKey }])
+
+            if (targetSection === selectedSection) {
+              await loadImages()
+            }
+          } catch (err: any) {
+            toast({ title: 'Error', description: err.message || 'Upload failed', variant: 'destructive' })
+          }
+        }
+      }
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Upload failed', variant: 'destructive' })
+    } finally {
+      setDistributorUploading(false)
     }
   }
 
@@ -606,7 +1048,8 @@ const [zoomPreview, setZoomPreview] = useState<{ show: boolean; url: string; alt
     }
 
     const metadata = imageMetadata[imageKey] || {}
-    if (selectedSection !== 'hero' && !metadata?.title && !metadata?.description) {
+    // Allow saving for custom sections even without title/description
+    if (!isCustomSelected && selectedSection !== 'hero' && !metadata?.title && !metadata?.description) {
       toast({
         title: 'Error',
         description: 'Please enter title or description',
@@ -646,6 +1089,7 @@ const [zoomPreview, setZoomPreview] = useState<{ show: boolean; url: string; alt
       // Add jewelry fields for all jewelry sections
       const jewelrySections = ['luxury-jewelry', 'gold-jewelry', 'diamond-jewelry', 'earrings', 'rings', 'bracelets', 'bangles', 'pendants', 'daily-wear', 'gifting', 'wedding', 'more-collections', 'all-jewelry']
       if (jewelrySections.includes(selectedSection)) {
+        // Common jewelry fields
         metadataToSave.category = metadata.category || null
         metadataToSave.purity = metadata.purity || null
         metadataToSave.diamondCarat = metadata.diamondCarat || null
@@ -656,11 +1100,41 @@ const [zoomPreview, setZoomPreview] = useState<{ show: boolean; url: string; alt
         metadataToSave.originalPrice = metadata.originalPrice || null
         // Classification fields
         metadataToSave.jewelryCategory = (metadata as any).jewelryCategory || metadata.category || null
+        // Ring-specific fields
+        metadataToSave.ringSubtype = (metadata as any).ringSubtype || null
+        metadataToSave.smallDescription = (metadata as any).smallDescription || null
+        metadataToSave.largeDescription = (metadata as any).largeDescription || null
+        metadataToSave.ringSize = (metadata as any).ringSize || null
         // Diamond-specific fields
         metadataToSave.cut = (metadata as any).cut || null
         metadataToSave.clarity = (metadata as any).clarity || null
         metadataToSave.color = (metadata as any).color || null
-        metadataToSave.detailedDescription = (metadata as any).detailedDescription || null
+        metadataToSave.carat = (metadata as any).carat || metadata.diamondCarat || null
+        // Gold-specific fields
+        metadataToSave.purityKarat = (metadata as any).purityKarat || metadata.purity || null
+        metadataToSave.colorFinish = (metadata as any).colorFinish || null
+        metadataToSave.typeCategory = (metadata as any).typeCategory || metadata.category || null
+        metadataToSave.weight = (metadata as any).weight || null
+        metadataToSave.designStyle = (metadata as any).designStyle || null
+        // Polki-specific fields
+        metadataToSave.goldPurity = (metadata as any).goldPurity || null
+        metadataToSave.polkiSizeOrCount = (metadata as any).polkiSizeOrCount || null
+        metadataToSave.finishPlating = (metadata as any).finishPlating || null
+        // Detailed description (shared)
+      metadataToSave.detailedDescription = (metadata as any).detailedDescription || null
+      }
+
+      // Persist custom fields for custom sections
+      if (isCustomSelected) {
+        const sectionFields = getFieldsForSection(selectedSection)
+        const valsForCard = (customFieldValues[selectedSection] || {})[imageKey] || {}
+        const customFieldsPayload = sectionFields.map((f) => ({
+          id: f.id,
+          label: f.label,
+          type: f.type,
+          value: (valsForCard as any)[f.id] ?? ''
+        })).filter((cf) => typeof cf.value === 'string' ? cf.value.trim() !== '' : !!cf.value)
+        metadataToSave.customFields = customFieldsPayload
       }
 
       const response = await fetch('/api/admin/images', {
@@ -777,6 +1251,18 @@ const [zoomPreview, setZoomPreview] = useState<{ show: boolean; url: string; alt
       loadImages()
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Save failed', variant: 'destructive' })
+    }
+  }
+
+  // Save distributor form locally (routes to be added later)
+  const handleSaveDistributor = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('admin.distributorForm', JSON.stringify(distributorForm))
+      }
+      toast({ title: 'Saved', description: 'Distributor form saved locally. Routing will be added later.' })
+    } catch (error: any) {
+      toast({ title: 'Error', description: error?.message || 'Save failed', variant: 'destructive' })
     }
   }
 
@@ -1107,14 +1593,227 @@ const [zoomPreview, setZoomPreview] = useState<{ show: boolean; url: string; alt
               <div className="flex-1 h-px bg-gradient-to-l from-transparent via-amber-300/40 to-amber-300/10"></div>
             </div>
           </div>
+
+          {/* Quick access actions */}
+          <div className="mb-4 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setShowDistributor(prev => !prev)}
+              className="group relative px-6 py-3 border border-amber-400/60 bg-gradient-to-r from-amber-100 to-amber-50 hover:from-amber-200 hover:to-amber-100 transition-all duration-300 overflow-hidden shadow-md shadow-amber-500/10 rounded-md"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-400/0 via-amber-400/20 to-amber-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+              <div className="relative flex items-center gap-2">
+                <Upload className="w-3.5 h-3.5 text-amber-700" strokeWidth={1.5} />
+                <span className="text-[10px] tracking-[0.25em] text-amber-700 uppercase font-light">Jewelry Data Distributor</span>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowCustomBuilder(prev => !prev)}
+              className="group relative px-6 py-3 border border-amber-400/60 bg-gradient-to-r from-amber-100 to-amber-50 hover:from-amber-200 hover:to-amber-100 transition-all duration-300 overflow-hidden shadow-md shadow-amber-500/10 rounded-md"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-400/0 via-amber-400/20 to-amber-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+              <div className="relative flex items-center gap-2">
+                <ImageIcon className="w-3.5 h-3.5 text-amber-700" strokeWidth={1.5} />
+                <span className="text-[10px] tracking-[0.25em] text-amber-700 uppercase font-light">Create Custom Section</span>
+              </div>
+            </button>
+          </div>
+
+          {showCustomBuilder && (
+            <div className="mb-8 bg-white border border-amber-200/60 rounded-md shadow-sm p-6">
+              <h3 className="text-[10px] tracking-[0.25em] text-slate-700 uppercase font-light mb-4">Create Custom Section</h3>
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-[10px] tracking-[0.25em] text-slate-600 uppercase font-light mb-1">Section Name</label>
+                  <Input
+                    value={customBuilder.name}
+                    onChange={(e) => setCustomBuilder(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="e.g. Festive Picks"
+                  />
+                </div>
+              </div>
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCustomBuilder(false)}
+                  className="px-4 py-2 text-xs border rounded-md"
+                >Cancel</button>
+                <button
+                  type="button"
+                  onClick={handleCreateCustomSection}
+                  className="px-4 py-2 text-xs border border-amber-400 bg-amber-50 rounded-md"
+                >Save Section</button>
+              </div>
+              <p className="mt-2 text-[10px] tracking-[0.2em] text-slate-500">Saved sections appear in Destination chips and page lists.</p>
+            </div>
+          )}
+          {showDistributor && (
+          <div className="mb-8 bg-white border border-amber-200/60 rounded-md shadow-sm p-6">
+            <h3 className="text-[10px] tracking-[0.25em] text-slate-700 uppercase font-light mb-4">Jewelry Data Distributor</h3>
+
+            {/* ETL Flow Animation (compact) */}
+            <div className="relative mb-6 rounded-xl border border-amber-200/70 bg-gradient-to-r from-white via-amber-50/70 to-white shadow-sm">
+              <div className="relative px-6 py-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-11 w-11 rounded-lg bg-amber-600 text-white flex items-center justify-center shadow-md">
+                      <Upload className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] tracking-[0.25em] uppercase text-slate-700">Source</p>
+                      <p className="text-[9px] tracking-[0.2em] uppercase text-slate-500">Jewelry Data Distributor</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-0.5 w-20 bg-gradient-to-r from-amber-300 to-amber-500 animate-pulse"></div>
+                    <Diamond className="w-4 h-4 text-amber-700" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] tracking-[0.25em] uppercase text-slate-700">Destination</p>
+                    <p className="text-[9px] tracking-[0.2em] uppercase text-slate-500">Selected sections</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Basic distributor form */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Jewelry Type</label>
+                <select
+                  className="w-full border border-amber-300 bg-white text-slate-900 text-sm px-3 py-2"
+                  value={distributorForm.jewelryType || ''}
+                  onChange={(e) => setDistributorForm(prev => ({ ...prev, jewelryType: e.target.value }))}
+                >
+                  <option value="">Select type</option>
+                  <option value="gold">Gold</option>
+                  <option value="diamond">Diamond</option>
+                  <option value="polki">Polki</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Category</label>
+                <Input
+                  type="text"
+                  placeholder="e.g. Rings, Earrings"
+                  value={distributorForm.category || ''}
+                  onChange={(e) => setDistributorForm(prev => ({ ...prev, category: e.target.value }))}
+                  className="bg-white border-amber-300 text-slate-900 placeholder:text-slate-400 text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Target sections */}
+            <div className="mt-6">
+              <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Destination</label>
+              <div className="flex flex-wrap gap-2">
+                {SECTIONS.map(s => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => {
+                      const exists = distributorForm.targetSections?.includes(s.id)
+                      const next = exists
+                        ? (distributorForm.targetSections || []).filter(id => id !== s.id)
+                        : [ ...(distributorForm.targetSections || []), s.id ]
+                      setDistributorForm(prev => ({ ...prev, targetSections: next }))
+                    }}
+                    className={`px-3 py-1 text-[10px] tracking-[0.2em] uppercase rounded border ${distributorForm.targetSections?.includes(s.id) ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-white border-slate-300 text-slate-600'}`}
+                  >
+                    {s.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Upload controls */}
+            <div className="mt-6 flex items-center gap-3">
+              <input
+                type="file"
+                multiple
+                ref={distributorInputRef}
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files) {
+                    handleDistributorUpload(e.target.files)
+                  }
+                }}
+              />
+              <button
+                onClick={() => distributorInputRef.current?.click()}
+                className="group relative px-6 py-3 border border-amber-400/60 bg-gradient-to-r from-amber-100 to-amber-50 hover:from-amber-200 hover:to-amber-100 transition-all duration-300 overflow-hidden shadow-md shadow-amber-500/10"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-amber-400/0 via-amber-400/20 to-amber-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                <div className="relative flex items-center gap-2">
+                  <Upload className="w-3.5 h-3.5 text-amber-700" strokeWidth={1.5} />
+                  <span className="text-[10px] tracking-[0.25em] text-amber-700 uppercase font-light">Upload</span>
+                </div>
+              </button>
+
+            </div>
+          </div>
           
+           )}
+          {/* Custom Sections Row */}
+          {CUSTOM_PAGES.length > 0 && (
+            <div className="mb-4">
+              <div className="flex items-center gap-4 mb-2">
+                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-amber-300/40 to-amber-300/10"></div>
+                <h2 className="text-[10px] tracking-[0.3em] text-amber-700/80 uppercase font-light">Custom Sections</h2>
+                <div className="flex-1 h-px bg-gradient-to-l from-transparent via-amber-300/40 to-amber-300/10"></div>
+              </div>
+              <div className="bg-white border border-amber-200/40 shadow-lg overflow-hidden">
+                <div className="h-1 bg-gradient-to-r from-amber-200 via-champagne-gold to-amber-200"></div>
+                <div className="flex overflow-x-auto scrollbar-hide">
+                  {CUSTOM_PAGES.map((page) => (
+                    <button
+                      key={page.id}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSelectedPage(page.id);
+                        setSelectedSection(page.sections[0].id);
+                      }}
+                      type="button"
+                      className={`
+                        group relative flex-1 min-w-[140px] px-6 py-6 border-r border-amber-200/30 transition-all duration-300 cursor-pointer
+                        ${selectedPage === page.id
+                          ? 'bg-gradient-to-b from-amber-50 to-white'
+                          : 'bg-white hover:bg-amber-50/50'
+                        }
+                      `}
+                    >
+                      {/* Active Indicator */}
+                      {selectedPage === page.id && (
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-champagne-gold to-transparent"></div>
+                      )}
+                      <div className="relative text-center">
+                        <p className={`text-sm tracking-[0.15em] uppercase font-light mb-1 transition-colors duration-200 ${
+                          selectedPage === page.id ? 'text-champagne-gold font-medium' : 'text-slate-600 group-hover:text-champagne-gold'
+                        }`}>
+                          {page.name}
+                        </p>
+                        <p className={`text-[9px] tracking-[0.2em] uppercase transition-colors duration-200 ${
+                          selectedPage === page.id ? 'text-amber-600/80' : 'text-slate-400 group-hover:text-amber-600/60'
+                        }`}>
+                          {page.description}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Clean Tab Navigation */}
           <div className="bg-white border border-amber-200/40 shadow-lg overflow-hidden">
             {/* Top Gold Accent */}
             <div className="h-1 bg-gradient-to-r from-amber-200 via-champagne-gold to-amber-200"></div>
             
             <div className="flex overflow-x-auto scrollbar-hide">
-              {PAGE_CATEGORIES.map((page, index) => (
+              {ALL_PAGES.map((page, index) => (
                 <button
                   key={page.id}
                   onClick={(e) => {
@@ -1157,7 +1856,7 @@ const [zoomPreview, setZoomPreview] = useState<{ show: boolean; url: string; alt
         </div>
 
         {/* Section Selector - Only for selected page */}
-        {currentPageSections.length > 1 && (
+        {currentPageSections.length >= 1 && (
           <div className="relative mb-12">
             <div className="mb-6">
               <div className="flex items-center gap-4 mb-3">
@@ -1198,6 +1897,142 @@ const [zoomPreview, setZoomPreview] = useState<{ show: boolean; url: string; alt
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Custom Fields Builder - only for custom sections */}
+        {isCustomSelected && (
+          <div className="mb-12 bg-white border border-amber-200/60 rounded-md shadow-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-[10px] tracking-[0.25em] text-slate-700 uppercase font-light">Custom Fields for this Section</h3>
+              <div className="flex gap-2 items-center">
+                {saveNotice && <span className="px-2 py-1 text-[10px] rounded bg-emerald-50 border border-emerald-200 text-emerald-700">{saveNotice}</span>}
+                <button onClick={() => addField(selectedSection, 'text')} className="px-3 py-2 text-[10px] tracking-[0.25em] uppercase border border-amber-300 bg-amber-50 hover:bg-amber-100">Add Text</button>
+                <button onClick={() => addField(selectedSection, 'dropdown')} className="px-3 py-2 text-[10px] tracking-[0.25em] uppercase border border-amber-300 bg-amber-50 hover:bg-amber-100">Add Dropdown</button>
+                <button onClick={manualSave} className="px-3 py-2 text-[10px] tracking-[0.25em] uppercase border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800">Save</button>
+                <button onClick={() => setShowPreview(p => !p)} className="px-3 py-2 text-[10px] tracking-[0.25em] uppercase border border-slate-300 bg-slate-50 hover:bg-slate-100">{showPreview ? 'Hide Preview' : 'Show Preview'}</button>
+              </div>
+            </div>
+            
+            <style jsx>{`
+               @keyframes bubblePop {
+                 0% { transform: scale(1); }
+                 50% { transform: scale(1.03); }
+                 100% { transform: scale(1.02); }
+               }
+               @keyframes dropRipple {
+                 0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0.35; }
+                 60% { transform: translate(-50%, -50%) scale(6); opacity: 0.18; }
+                 100% { transform: translate(-50%, -50%) scale(9); opacity: 0; }
+               }
+               .animate-dropRipple {
+                 animation: dropRipple 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+                 will-change: transform, opacity;
+               }
+             `}</style>
+            
+            {/* Field list */}
+            <div className="space-y-4">
+              {getFieldsForSection(selectedSection).length === 0 ? (
+                <div className="text-[11px] text-slate-500">No custom fields yet. Add one above.</div>
+              ) : (
+                getFieldsForSection(selectedSection).map((f, idx) => (
+                  <div
+                    key={f.id}
+                    className={`border border-amber-200 rounded p-4 transition-all duration-150 ease-out ${draggingFieldId === f.id ? 'ring-2 ring-amber-400/40 shadow-lg scale-[1.02] cursor-grabbing' : 'hover:shadow-sm cursor-grab'} ${dragOverIndex === idx ? 'ring-2 ring-amber-300/50' : ''}`}
+                    style={{ animation: draggingFieldId === f.id ? 'bubblePop 180ms ease-out 1' : undefined }}
+                    draggable
+                    onDragStart={() => onFieldDragStart(idx, f.id)}
+                    onDragOver={(e) => onFieldDragOver(e, idx)}
+                    onDragLeave={() => onFieldDragLeave()}
+                    onDrop={(e) => onFieldDrop(idx, e)}
+                    onDragEnd={() => { setDraggingFieldId(null); onFieldDragLeave(); }}
+                  >
+                    {/* Ripple overlay (appears on drop) */}
+                    {ripple?.index === idx && (
+                      <span className="pointer-events-none absolute inset-0">
+                        <span
+                          className="absolute rounded-full animate-dropRipple"
+                          style={{
+                            left: ripple.x,
+                            top: ripple.y,
+                            width: 8,
+                            height: 8,
+                            transform: 'translate(-50%, -50%)',
+                            background: 'radial-gradient(circle, rgba(245, 158, 11, 0.28) 0%, rgba(245, 158, 11, 0.20) 40%, rgba(245, 158, 11, 0.10) 70%, rgba(245, 158, 11, 0.02) 85%, transparent 90%)'
+                          }}
+                        />
+                      </span>
+                    )}
+                    <div className="flex items-center gap-2 text-slate-400 mb-2"><GripVertical className="w-4 h-4" /><span className="text-[10px] uppercase tracking-[0.16em]">Drag to reorder</span></div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
+                      <div className="md:col-span-2">
+                        <label className="text-[10px] tracking-[0.25em] uppercase text-slate-600">Label</label>
+                        <input
+                          value={f.label}
+                          onChange={(e) => updateField(selectedSection, f.id, { label: e.target.value })}
+                          className="mt-1 w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] tracking-[0.25em] uppercase text-slate-600">Type</label>
+                        <select
+                          value={f.type}
+                          onChange={(e) => updateField(selectedSection, f.id, { type: e.target.value as any, options: e.target.value === 'dropdown' ? (f.options || ['Option 1']) : undefined })}
+                          className="mt-1 w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                        >
+                          <option value="text">Text</option>
+                          <option value="dropdown">Dropdown</option>
+                        </select>
+                      </div>
+                      <div className="flex items-end justify-end">
+                        <button onClick={() => removeField(selectedSection, f.id)} className="px-3 py-2 text-[10px] tracking-[0.25em] uppercase border border-red-300 bg-red-50 hover:bg-red-100 text-red-700">Delete</button>
+                      </div>
+                    </div>
+                    {f.type === 'dropdown' && (
+                      <div className="mt-3">
+                        <label className="text-[10px] tracking-[0.25em] uppercase text-slate-600">Options</label>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {(f.options || []).map(opt => (
+                            <span key={opt} className="px-3 py-1 text-[11px] rounded-full bg-white border border-amber-300 text-amber-800">
+                              {opt}
+                              <button onClick={() => removeDropdownOption(selectedSection, f.id, opt)} className="ml-2 text-[10px] text-red-600">✕</button>
+                            </span>
+                          ))}
+                        </div>
+                        <div className="mt-2 flex gap-2">
+                          <input
+                            placeholder="Add option"
+                            className="w-48 border border-slate-300 rounded px-3 py-2 text-sm"
+                            onKeyDown={(e) => {
+                              const val = (e.target as HTMLInputElement).value.trim()
+                              if (e.key === 'Enter' && val) {
+                                addDropdownOption(selectedSection, f.id, val)
+                                ;(e.target as HTMLInputElement).value = ''
+                              }
+                            }}
+                          />
+                          <button
+                            onClick={(e) => {
+                              const input = (e.currentTarget.previousSibling as HTMLInputElement)
+                              const val = input?.value.trim()
+                              if (val) {
+                                addDropdownOption(selectedSection, f.id, val)
+                                input.value = ''
+                              }
+                            }}
+                            className="px-3 py-2 text-[10px] tracking-[0.25em] uppercase border border-amber-300 bg-amber-50 hover:bg-amber-100"
+                          >Add</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Per-card custom field values are edited within each image card below. */}
+            {/* Preview moved into collection cards for custom sections */}
           </div>
         )}
 
@@ -1263,6 +2098,440 @@ const [zoomPreview, setZoomPreview] = useState<{ show: boolean; url: string; alt
 
           <div className="p-8 bg-gradient-to-br from-amber-50/30 to-white">
 
+          {false && (
+            <div className="mb-8 bg-white border border-amber-200/60 rounded-md shadow-sm p-6">
+              <h3 className="text-[10px] tracking-[0.25em] text-slate-700 uppercase font-light mb-4">Jewelry Data Distributor</h3>
+
+              {/* ETL Flow Animation */}
+              <div className="relative mb-6 rounded-xl border border-amber-200/70 bg-gradient-to-r from-white via-amber-50/70 to-white shadow-sm">
+                {/* Premium SVG flow with gradient connectors */}
+                <div className="relative px-6 py-5">
+                  <div className="flex items-center justify-between">
+                    {/* Source */}
+                    <div className="flex items-center gap-3">
+                      <div className="h-11 w-11 rounded-lg bg-amber-600 text-white flex items-center justify-center shadow-md">
+                        <ImageIcon className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="text-[9px] tracking-[0.25em] text-slate-600 uppercase">Source</div>
+                        <div className="text-sm font-semibold text-slate-800">Jewelry Data Distributor</div>
+                      </div>
+                    </div>
+
+                    {/* Transform */}
+                    <div className="flex flex-col items-center">
+                      <div className="h-14 w-14 rounded-full bg-amber-100/60 border border-amber-300 flex items-center justify-center shadow-md">
+                        <Loader2 className={`w-6 h-6 text-amber-700 ${distributorUploading ? 'animate-spin' : ''}`} />
+                      </div>
+                      <div className="text-[9px] tracking-[0.25em] text-slate-600 uppercase mt-1">Transform</div>
+                    </div>
+
+                    {/* Destination */}
+                    <div className="text-right">
+                      <div className="text-[9px] tracking-[0.25em] text-slate-600 uppercase mb-1">Destination</div>
+                      <div className="flex flex-wrap gap-2 justify-end">
+                        {distributorForm.targetSections.length === 0 ? (
+                          <span className="text-xs text-slate-500">Select sections</span>
+                        ) : (
+                          distributorForm.targetSections.map(sec => (
+                            <span key={sec} className="px-3 py-1 text-[11px] rounded-full bg-white border border-amber-300 text-amber-800 shadow-sm backdrop-blur-sm animate-fade-in">
+                              {sec}
+                            </span>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SVG connectors */}
+                  <svg className="absolute inset-0" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id="etlGradient" x1="0" x2="1" y1="0" y2="0">
+                        <stop offset="0%" stopColor="#f59e0b" />
+                        <stop offset="50%" stopColor="#0ea5e9" />
+                        <stop offset="100%" stopColor="#f59e0b" />
+                      </linearGradient>
+                    </defs>
+                    {/* Smooth premium lines aligned to selected destinations */}
+                    {(distributorForm.targetSections.length ? distributorForm.targetSections.map((_, i) => Math.min(90, 30 + i * 30)) : [30, 60, 90]).map((y, i) => (
+                      <path key={`line-${y}-${i}`} d={`M 140 ${y} C 420 ${y}, 780 ${y}, 1060 ${y}`} stroke="url(#etlGradient)" strokeWidth="2.5" fill="none" className="opacity-60 animate-line" />
+                    ))}
+                    {/* Moving particles to suggest flow */}
+                    {(distributorForm.targetSections.length ? distributorForm.targetSections.map((_, i) => Math.min(90, 30 + i * 30)) : [30, 60, 90]).map((y, i) => (
+                      <circle key={`p-${y}-${i}`} cx={140} cy={y} r="3" fill="#f59e0b" className={`animate-particle delay-[${i*200}ms]`} />
+                    ))}
+                  </svg>
+                </div>
+
+                <style jsx>{`
+                  @keyframes linePulse {
+                    0% { opacity: 0.4; }
+                    50% { opacity: 0.8; }
+                    100% { opacity: 0.4; }
+                  }
+                  @keyframes particleMove {
+                    0% { transform: translateX(0); opacity: 0.6; }
+                    50% { opacity: 1; }
+                    100% { transform: translateX(920px); opacity: 0.6; }
+                  }
+                  .animate-line { animation: linePulse ${distributorUploading ? '1.2s' : '2.6s'} ease-in-out infinite; }
+                  .animate-particle { animation: particleMove ${distributorUploading ? '1.8s' : '3.4s'} linear infinite; }
+                  .animate-fade-in { animation: fadeIn 300ms ease-out both; }
+                  @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(4px); }
+                    to { opacity: 1; transform: translateY(0); }
+                  }
+                `}</style>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Jewelry Type</label>
+                  <select
+                    className="w-full border border-amber-300 rounded-md p-2 text-sm"
+                    value={distributorForm.jewelryType}
+                    onChange={(e) => setDistributorForm(prev => ({ ...prev, jewelryType: e.target.value }))}
+                  >
+                    <option value="">Select Type</option>
+                    <option value="high">High Jewelry</option>
+                    <option value="fine">Fine Jewelry</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Subtype</label>
+                  <select
+                    className="w-full border border-amber-300 rounded-md p-2 text-sm"
+                    value={distributorForm.subtype}
+                    onChange={(e) => setDistributorForm(prev => ({ ...prev, subtype: e.target.value }))}
+                  >
+                    <option value="">Select Subtype</option>
+                    <option value="gold">Gold</option>
+                    <option value="diamond">Diamond</option>
+                    <option value="polki">Polki</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Category</label>
+                  <select
+                    className="w-full border border-amber-300 rounded-md p-2 text-sm"
+                    value={distributorForm.category}
+                    onChange={(e) => setDistributorForm(prev => ({ ...prev, category: e.target.value }))}
+                  >
+                    <option value="">Select Category</option>
+                    <option value="set">Set</option>
+                    <option value="necklace">Necklace</option>
+                    <option value="earrings">Earrings</option>
+                    <option value="bracelet">Bracelet</option>
+                    <option value="bangle">Bangle</option>
+                    <option value="rings">Rings</option>
+                    <option value="pendants">Pendants</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <h4 className="text-[10px] tracking-[0.25em] text-slate-700 uppercase font-light mb-2">Target Sections</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {['earrings','rings','bracelets','bangles','pendants','necklaces','set'].map(sec => (
+                    <label key={sec} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={distributorForm.targetSections.includes(sec)}
+                        onChange={(e) => setDistributorForm(prev => ({
+                          ...prev,
+                          targetSections: e.target.checked
+                            ? [...prev.targetSections, sec]
+                            : prev.targetSections.filter(s => s !== sec)
+                        }))}
+                      />
+                      <span className="capitalize">{sec}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {distributorForm.subtype === 'diamond' && (
+                <div className="mt-6">
+                  <h4 className="text-[10px] tracking-[0.25em] text-slate-700 uppercase font-light mb-2">Diamond Attributes</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                      <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Cut</label>
+                      <select
+                        className="w-full border border-amber-300 rounded-md p-2 text-sm"
+                        value={distributorForm.diamond.cut}
+                        onChange={(e) => setDistributorForm(prev => ({ ...prev, diamond: { ...prev.diamond, cut: e.target.value } }))}
+                      >
+                        <option value="">Select Cut</option>
+                        <option value="round">Round</option>
+                        <option value="princess">Princess</option>
+                        <option value="marquise">Marquise</option>
+                        <option value="cushion">Cushion</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Color</label>
+                      <select
+                        className="w-full border border-amber-300 rounded-md p-2 text-sm"
+                        value={distributorForm.diamond.color}
+                        onChange={(e) => setDistributorForm(prev => ({ ...prev, diamond: { ...prev.diamond, color: e.target.value } }))}
+                      >
+                        <option value="">Select Color</option>
+                        <option value="D-J">D-J</option>
+                        <option value="K+">K+</option>
+                        <option value="Z+">Z+</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Clarity</label>
+                      <select
+                        className="w-full border border-amber-300 rounded-md p-2 text-sm"
+                        value={distributorForm.diamond.clarity}
+                        onChange={(e) => setDistributorForm(prev => ({ ...prev, diamond: { ...prev.diamond, clarity: e.target.value } }))}
+                      >
+                        <option value="">Select Clarity</option>
+                        <option value="FL">FL</option>
+                        <option value="IF">IF</option>
+                        <option value="VVS">VVS</option>
+                        <option value="VVS1">VVS1</option>
+                        <option value="VVS2">VVS2</option>
+                        <option value="VS1">VS1</option>
+                        <option value="VS2">VS2</option>
+                        <option value="SI">SI</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Carat</label>
+                      <select
+                        className="w-full border border-amber-300 rounded-md p-2 text-sm"
+                        value={distributorForm.diamond.carat}
+                        onChange={(e) => setDistributorForm(prev => ({ ...prev, diamond: { ...prev.diamond, carat: e.target.value } }))}
+                      >
+                        <option value="">Select Carat</option>
+                        <option value="18">18</option>
+                        <option value="14">14</option>
+                        <option value="22">22</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {distributorForm.subtype === 'gold' && (
+                <div className="mt-6">
+                  <h4 className="text-[10px] tracking-[0.25em] text-slate-700 uppercase font-light mb-2">Gold Attributes</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div>
+                      <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Purity/Karat</label>
+                      <select className="w-full border border-amber-300 rounded-md p-2 text-sm" value={distributorForm.gold.purity} onChange={(e) => setDistributorForm(prev => ({ ...prev, gold: { ...prev.gold, purity: e.target.value } }))}>
+                        <option value="">Select Purity</option>
+                        <option value="24K">24K</option>
+                        <option value="22K">22K</option>
+                        <option value="18K">18K</option>
+                        <option value="14K">14K</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Color/Finish</label>
+                      <select className="w-full border border-amber-300 rounded-md p-2 text-sm" value={distributorForm.gold.colorFinish} onChange={(e) => setDistributorForm(prev => ({ ...prev, gold: { ...prev.gold, colorFinish: e.target.value } }))}>
+                        <option value="">Select Finish</option>
+                        <option value="Yellow Gold">Yellow Gold</option>
+                        <option value="White Gold">White Gold</option>
+                        <option value="Rose Gold">Rose Gold</option>
+                        <option value="Two-tone">Two-tone</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Type/Category</label>
+                      <select className="w-full border border-amber-300 rounded-md p-2 text-sm" value={distributorForm.gold.designStyle} onChange={(e) => setDistributorForm(prev => ({ ...prev, gold: { ...prev.gold, designStyle: e.target.value } }))}>
+                        <option value="">Select Category</option>
+                        <option value="Set">Set</option>
+                        <option value="Necklace">Necklace</option>
+                        <option value="Earrings">Earrings</option>
+                        <option value="Rings">Rings</option>
+                        <option value="Bracelet">Bracelet</option>
+                        <option value="Bangle">Bangle</option>
+                        <option value="Pendant">Pendant</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Weight</label>
+                      <select className="w-full border border-amber-300 rounded-md p-2 text-sm" value={distributorForm.gold.weight} onChange={(e) => setDistributorForm(prev => ({ ...prev, gold: { ...prev.gold, weight: e.target.value } }))}>
+                        <option value="">Select Range</option>
+                        <option value="5-10g">5-10g</option>
+                        <option value="10-20g">10-20g</option>
+                        <option value="20-50g">20-50g</option>
+                        <option value=">50g">50g+</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Design/Style</label>
+                      <select className="w-full border border-amber-300 rounded-md p-2 text-sm" value="" onChange={(e) => setDistributorForm(prev => ({ ...prev, gold: { ...prev.gold, designStyle: e.target.value } }))}>
+                        <option value="">Select Style</option>
+                        <option value="Traditional">Traditional</option>
+                        <option value="Contemporary">Contemporary</option>
+                        <option value="Modern">Modern</option>
+                        <option value="Vintage">Vintage</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {distributorForm.subtype === 'polki' && (
+                <div className="mt-6">
+                  <h4 className="text-[10px] tracking-[0.25em] text-slate-700 uppercase font-light mb-2">Polki Attributes</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Gold Purity</label>
+                      <select className="w-full border border-amber-300 rounded-md p-2 text-sm" value={distributorForm.polki.goldPurity} onChange={(e) => setDistributorForm(prev => ({ ...prev, polki: { ...prev.polki, goldPurity: e.target.value } }))}>
+                        <option value="">Select Purity</option>
+                        <option value="22K">22K</option>
+                        <option value="18K">18K</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Polki Size</label>
+                      <select className="w-full border border-amber-300 rounded-md p-2 text-sm" value={distributorForm.polki.polkiSize} onChange={(e) => setDistributorForm(prev => ({ ...prev, polki: { ...prev.polki, polkiSize: e.target.value } }))}>
+                        <option value="">Select Size</option>
+                        <option value="Small">Small</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Large">Large</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Number of Stones</label>
+                      <Input
+                        type="text"
+                        placeholder="e.g., 12"
+                        value={distributorForm.polki.polkiCount}
+                        onChange={(e) => setDistributorForm(prev => ({ ...prev, polki: { ...prev.polki, polkiCount: e.target.value } }))}
+                        className="bg-white border-amber-300 text-slate-900 placeholder:text-slate-400 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                    <div>
+                      <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Type/Category</label>
+                      <select className="w-full border border-amber-300 rounded-md p-2 text-sm" value={distributorForm.polki.typeCategory} onChange={(e) => setDistributorForm(prev => ({ ...prev, polki: { ...prev.polki, typeCategory: e.target.value } }))}>
+                        <option value="">Select Category</option>
+                        <option value="Set">Set</option>
+                        <option value="Necklace">Necklace</option>
+                        <option value="Earrings">Earrings</option>
+                        <option value="Rings">Rings</option>
+                        <option value="Bracelet">Bracelet</option>
+                        <option value="Bangle">Bangle</option>
+                        <option value="Pendant">Pendant</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Design/Style</label>
+                      <select className="w-full border border-amber-300 rounded-md p-2 text-sm" value={distributorForm.polki.designStyle} onChange={(e) => setDistributorForm(prev => ({ ...prev, polki: { ...prev.polki, designStyle: e.target.value } }))}>
+                        <option value="">Select Style</option>
+                        <option value="Traditional">Traditional</option>
+                        <option value="Bridal">Bridal</option>
+                        <option value="Temple">Temple</option>
+                        <option value="Antique">Antique</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Weight</label>
+                      <select className="w-full border border-amber-300 rounded-md p-2 text-sm" value={distributorForm.polki.weight} onChange={(e) => setDistributorForm(prev => ({ ...prev, polki: { ...prev.polki, weight: e.target.value } }))}>
+                        <option value="">Select Range</option>
+                        <option value="5-10g">5-10g</option>
+                        <option value="10-20g">10-20g</option>
+                        <option value="20-50g">20-50g</option>
+                        <option value=">50g">50g+</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                    <div>
+                      <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Finish/Plating</label>
+                      <select className="w-full border border-amber-300 rounded-md p-2 text-sm" value={distributorForm.polki.finishPlating} onChange={(e) => setDistributorForm(prev => ({ ...prev, polki: { ...prev.polki, finishPlating: e.target.value } }))}>
+                        <option value="">Select Finish</option>
+                        <option value="Gold">Gold</option>
+                        <option value="Rhodium">Rhodium</option>
+                        <option value="Mixed">Mixed</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <input
+                type="file"
+                multiple
+                ref={distributorInputRef}
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files) {
+                    handleDistributorUpload(e.target.files)
+                  }
+                }}
+              />
+
+              <div className="mt-6">
+                <h4 className="text-[10px] tracking-[0.25em] text-slate-700 uppercase font-light mb-2">Upload Images or Videos</h4>
+                <div
+                  className="group relative border border-amber-300/60 bg-gradient-to-br from-amber-50 to-white rounded-md p-8 text-center cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/10"
+                  onClick={() => distributorInputRef.current?.click()}
+                  onDragOver={(e) => { e.preventDefault() }}
+                  onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files?.length) handleDistributorUpload(e.dataTransfer.files) }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-300/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                  <div className="relative flex flex-col items-center gap-2">
+                    <Upload className="w-5 h-5 text-amber-700" strokeWidth={1.5} />
+                    <p className="text-[10px] tracking-[0.25em] text-slate-700 uppercase">Drag & drop, or click to browse</p>
+                    <p className="text-[10px] tracking-[0.2em] text-slate-500">JPG, PNG, WebP, GIF, MP4, WebM, MOV, AVI</p>
+                    {distributorUploading && (
+                      <div className="mt-3 flex items-center gap-2 text-amber-700">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-[10px] tracking-[0.2em] uppercase">Uploading...</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-center gap-3">
+                <Button onClick={handleSaveDistributor} className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 text-xs tracking-[0.2em] uppercase">
+                  <Save className="w-3 h-3 mr-2" /> Save Distributor Draft
+                </Button>
+              </div>
+
+              <div className="mt-8">
+                <h4 className="text-[10px] tracking-[0.25em] text-slate-700 uppercase font-light mb-2">Recent Distributor Uploads</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  {distributorUploads.map((upload) => (
+                    <div key={`${upload.section}-${upload.imageKey}`} className="group relative border border-amber-200/60 rounded-md overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
+                      <Image src={upload.url} alt={upload.section} width={300} height={300} className="object-cover w-full h-36" />
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent p-2 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          className="p-1.5 bg-white/80 rounded hover:bg-white"
+                          onClick={() => setZoomPreview({ show: true, url: upload.url, alt: upload.section })}
+                        >
+                          <ZoomIn className="w-4 h-4 text-slate-800" />
+                        </button>
+                        <button
+                          className="p-1.5 bg-white/80 rounded hover:bg-white"
+                          onClick={async () => { await handleDeleteImage(upload.id); setDistributorUploads(prev => prev.filter(u => u.id !== upload.id)) }}
+                        >
+                          <Trash2 className="w-4 h-4 text-red-600" />
+                        </button>
+                      </div>
+                      <div className="px-2 py-2">
+                        <p className="text-[9px] tracking-[0.2em] uppercase text-slate-600">{upload.section}</p>
+                        <p className="text-[9px] tracking-[0.2em] uppercase text-slate-400">{upload.imageKey}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+          )}
           {selectedSection === 'featured-collections' && (
             <div className="mb-8 bg-white border border-amber-200/60 rounded-md shadow-sm p-6">
               <h3 className="text-[10px] tracking-[0.25em] text-slate-700 uppercase font-light mb-4">Section Header</h3>
@@ -1565,6 +2834,48 @@ const [zoomPreview, setZoomPreview] = useState<{ show: boolean; url: string; alt
                       </div>
                     )}
 
+                    {/* Custom Fields inside cards for Custom Sections */}
+                    {isCustomSelected && showPreview && (
+                      <div className="rounded-lg border border-slate-200/70 bg-white/60 backdrop-blur-sm p-3">
+                        <div className="mb-3">
+                          <span className="text-[10px] tracking-[0.16em] text-slate-700 uppercase">Custom Fields</span>
+                        </div>
+                        {getFieldsForSection(selectedSection).length === 0 ? (
+                          <div className="text-[11px] text-slate-500">No custom fields yet.</div>
+                        ) : (
+                          <div className="space-y-3">
+                            {getFieldsForSection(selectedSection).map((f) => {
+                              const val = getValueForCard(selectedSection, imageKey, f.id)
+                              return (
+                                <div key={`card-field-${f.id}`} className="space-y-3">
+                                  <label className="text-[10px] tracking-[0.12em] text-slate-600 uppercase block mb-2">{f.label}</label>
+                                  {f.type === 'text' ? (
+                                    <Input
+                                      type="text"
+                                      value={val}
+                                      onChange={(e) => setValue(selectedSection, imageKey, f.id, e.target.value)}
+                                      placeholder={`Enter ${f.label}`}
+                                      className="h-9 rounded-md bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 text-sm px-2.5 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30 transition-all duration-200"
+                                    />
+                                  ) : (
+                                    <select
+                                      value={val}
+                                      onChange={(e) => setValue(selectedSection, imageKey, f.id, e.target.value)}
+                                      className="h-9 rounded-md bg-white border border-slate-200 text-slate-900 text-sm px-2.5 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30 transition-all duration-200"
+                                    >
+                                      {(f.options || []).map((opt) => (
+                                        <option key={`${f.id}-${opt}`} value={opt}>{opt}</option>
+                                      ))}
+                                    </select>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Product Details for New Arrivals */}
                     {selectedSection === 'new-arrivals' && (
                       <div className="space-y-4">
@@ -1690,77 +3001,457 @@ const [zoomPreview, setZoomPreview] = useState<{ show: boolean; url: string; alt
                             className="bg-white border-amber-300 text-slate-900 placeholder:text-slate-400 text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30 transition-all duration-300"
                           />
                         </div>
-                        <div>
-                          <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Category</label>
-                          <select
-                            value={imageMetadata[imageKey]?.category || existingImage?.metadata?.category || ''}
-                            onChange={(e) => setImageMetadata({
-                              ...imageMetadata,
-                              [imageKey]: {
-                                ...imageMetadata[imageKey],
-                                category: e.target.value
-                              }
-                            })}
-                            className="w-full bg-white border border-amber-300 text-slate-900 text-sm rounded px-3 py-2 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30 transition-all duration-300"
-                          >
-                            <option value="">Select Category</option>
-                            {/* Show different categories based on section */}
-                            {selectedSection === 'gold-jewelry' ? (
-                              <>
-                                <option value="necklaces">Necklaces</option>
-                                <option value="earrings">Earrings</option>
-                                <option value="rings">Rings</option>
-                                <option value="bangles">Bangles</option>
-                                <option value="bracelets">Bracelets</option>
-                                <option value="chains">Chains</option>
-                                <option value="pendants">Pendants</option>
-                              </>
-                            ) : selectedSection === 'diamond-jewelry' ? (
-                              <>
-                                <option value="high-jewelry">High Jewelry</option>
-                                <option value="fine-jewelry">Fine Jewelry</option>
-                                <option value="gold">Gold</option>
-                              </>
-                            ) : selectedSection === 'earrings' ? (
-                              <>
-                                <option value="diamond">Diamond Earrings</option>
-                                <option value="gold">Gold Earrings</option>
-                                <option value="ruby">Ruby Earrings</option>
-                                <option value="emerald">Emerald Earrings</option>
-                                <option value="pearl">Pearl Earrings</option>
-                                <option value="intimate">Intimate Collection</option>
-                                <option value="others">Others</option>
-                              </>
-                            ) : selectedSection === 'rings' ? (
-                              <>
-                                <option value="engagement">Engagement Rings</option>
-                                <option value="wedding">Wedding Bands</option>
-                                <option value="diamond">Diamond Rings</option>
-                                <option value="gold">Gold Rings</option>
-                                <option value="platinum">Platinum Rings</option>
-                                <option value="cocktail">Cocktail Rings</option>
-                                <option value="eternity">Eternity Rings</option>
-                                <option value="fashion">Fashion Rings</option>
-                              </>
-                            ) : selectedSection === 'daily-wear' ? (
-                              <>
-                                <option value="office-wear">Office Wear</option>
-                                <option value="casual-wear">Casual Wear</option>
-                                <option value="party-wear">Party Wear</option>
-                                <option value="evening-wear">Evening Wear</option>
-                                <option value="weekend-wear">Weekend Wear</option>
-                                <option value="brunch-wear">Brunch Wear</option>
-                                <option value="everyday">Everyday Essentials</option>
-                                <option value="minimalist">Minimalist Collection</option>
-                              </>
-                            ) : (
-                              <>
-                                <option value="high-jewelry">High Jewelry</option>
-                                <option value="fine-jewelry">Fine Jewelry</option>
-                              </>
+                        {selectedSection !== 'rings' && (
+                          <div>
+                            <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase mb-2 block">Category</label>
+                            <select
+                              value={imageMetadata[imageKey]?.category || existingImage?.metadata?.category || ''}
+                              onChange={(e) => setImageMetadata({
+                                ...imageMetadata,
+                                [imageKey]: {
+                                  ...imageMetadata[imageKey],
+                                  category: e.target.value
+                                }
+                              })}
+                              className="w-full bg-white border border-amber-300 text-slate-900 text-sm rounded px-3 py-2 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30 transition-all duration-300"
+                            >
+                              <option value="">Select Category</option>
+                              {/* Show different categories based on section */}
+                              {selectedSection === 'gold-jewelry' ? (
+                                <>
+                                  <option value="necklaces">Necklaces</option>
+                                  <option value="earrings">Earrings</option>
+                                  <option value="rings">Rings</option>
+                                  <option value="bangles">Bangles</option>
+                                  <option value="bracelets">Bracelets</option>
+                                  <option value="chains">Chains</option>
+                                  <option value="pendants">Pendants</option>
+                                </>
+                              ) : selectedSection === 'diamond-jewelry' ? (
+                                <>
+                                  <option value="high-jewelry">High Jewelry</option>
+                                  <option value="fine-jewelry">Fine Jewelry</option>
+                                  <option value="gold">Gold</option>
+                                </>
+                              ) : selectedSection === 'earrings' ? (
+                                <>
+                                  <option value="diamond">Diamond Earrings</option>
+                                  <option value="gold">Gold Earrings</option>
+                                  <option value="ruby">Ruby Earrings</option>
+                                  <option value="emerald">Emerald Earrings</option>
+                                  <option value="pearl">Pearl Earrings</option>
+                                  <option value="intimate">Intimate Collection</option>
+                                  <option value="others">Others</option>
+                                </>
+                              ) : selectedSection === 'rings' ? (
+                                <>
+                                  <option value="engagement">Engagement Rings</option>
+                                  <option value="wedding">Wedding Bands</option>
+                                  <option value="diamond">Diamond Rings</option>
+                                  <option value="gold">Gold Rings</option>
+                                  <option value="platinum">Platinum Rings</option>
+                                  <option value="cocktail">Cocktail Rings</option>
+                                  <option value="eternity">Eternity Rings</option>
+                                  <option value="fashion">Fashion Rings</option>
+                                </>
+                              ) : selectedSection === 'bracelets' ? (
+                                <>
+                                  <option value="diamond">Diamond Bracelets</option>
+                                  <option value="gold">Gold Bracelets</option>
+                                  <option value="tennis">Tennis Bracelets</option>
+                                  <option value="link">Link Bracelets</option>
+                                  <option value="charm">Charm Bracelets</option>
+                                </>
+                              ) : selectedSection === 'daily-wear' ? (
+                                <>
+                                  <option value="office-wear">Office Wear</option>
+                                  <option value="casual-wear">Casual Wear</option>
+                                  <option value="party-wear">Party Wear</option>
+                                  <option value="evening-wear">Evening Wear</option>
+                                  <option value="weekend-wear">Weekend Wear</option>
+                                  <option value="brunch-wear">Brunch Wear</option>
+                                  <option value="everyday">Everyday Essentials</option>
+                                  <option value="minimalist">Minimalist Collection</option>
+                                </>
+                              ) : (
+                                <>
+                                  <option value="high-jewelry">High Jewelry</option>
+                                  <option value="fine-jewelry">Fine Jewelry</option>
+                                </>
+                              )}
+                            </select>
+                          </div>
+                        )}
+ 
+                          {/* Rings subtype-driven inputs */}
+                        {selectedSection === 'rings' && (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-3 gap-4">
+                              <div className="space-y-2">
+                                <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase block">Subtype</label>
+                                <select
+                                  value={(imageMetadata[imageKey] as any)?.ringSubtype || (existingImage?.metadata as any)?.ringSubtype || ''}
+                                  onChange={(e) => setImageMetadata({
+                                    ...imageMetadata,
+                                    [imageKey]: {
+                                      ...imageMetadata[imageKey],
+                                      ringSubtype: e.target.value
+                                    } as any
+                                  })}
+                                  className="w-full bg-white border border-amber-300 text-slate-900 text-sm rounded px-3 py-2 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
+                                >
+                                  <option value="">Select subtype</option>
+                                  <option value="diamond">Diamond</option>
+                                  <option value="gold">Gold</option>
+                                  <option value="polki">Polki</option>
+                                </select>
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase block">Small Description</label>
+                                <Input
+                                  type="text"
+                                  placeholder="e.g., Elegant solitaire ring"
+                                  value={(imageMetadata[imageKey] as any)?.smallDescription || (existingImage?.metadata as any)?.smallDescription || existingImage?.description || ''}
+                                  onChange={(e) => setImageMetadata({
+                                    ...imageMetadata,
+                                    [imageKey]: {
+                                      ...imageMetadata[imageKey],
+                                      smallDescription: e.target.value
+                                    } as any
+                                  })}
+                                  className="bg-white border-amber-300 text-slate-900 text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase block">Large Description</label>
+                                <Input
+                                  type="text"
+                                  placeholder="Detailed craftsmanship and materials"
+                                  value={(imageMetadata[imageKey] as any)?.largeDescription || (existingImage?.metadata as any)?.largeDescription || ''}
+                                  onChange={(e) => setImageMetadata({
+                                    ...imageMetadata,
+                                    [imageKey]: {
+                                      ...imageMetadata[imageKey],
+                                      largeDescription: e.target.value
+                                    } as any
+                                  })}
+                                  className="bg-white border-amber-300 text-slate-900 text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Diamond subtype fields */}
+                            {(((imageMetadata[imageKey] as any)?.ringSubtype || (existingImage?.metadata as any)?.ringSubtype) === 'diamond') && (
+                              <div className="grid grid-cols-4 gap-4">
+                                <div className="space-y-2">
+                                  <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase block">Cut</label>
+                                  <select
+                                    value={(imageMetadata[imageKey] as any)?.cut || (existingImage?.metadata as any)?.cut || ''}
+                                    onChange={(e) => setImageMetadata({
+                                      ...imageMetadata,
+                                      [imageKey]: {
+                                        ...imageMetadata[imageKey],
+                                        cut: e.target.value
+                                      } as any
+                                    })}
+                                    className="w-full bg-white border border-amber-300 text-slate-900 text-sm rounded px-3 py-2 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
+                                  >
+                                    <option value="">Select Cut</option>
+                                    <option value="Round Brilliant">Round Brilliant</option>
+                                    <option value="Princess">Princess</option>
+                                    <option value="Cushion">Cushion</option>
+                                    <option value="Emerald">Emerald</option>
+                                    <option value="Oval">Oval</option>
+                                    <option value="Pear">Pear</option>
+                                    <option value="Marquise">Marquise</option>
+                                    <option value="Asscher">Asscher</option>
+                                    <option value="Radiant">Radiant</option>
+                                  </select>
+                                </div>
+                                <div className="space-y-2">
+                                  <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase block">Clarity</label>
+                                  <select
+                                    value={(imageMetadata[imageKey] as any)?.clarity || (existingImage?.metadata as any)?.clarity || ''}
+                                    onChange={(e) => setImageMetadata({
+                                      ...imageMetadata,
+                                      [imageKey]: {
+                                        ...imageMetadata[imageKey],
+                                        clarity: e.target.value
+                                      } as any
+                                    })}
+                                    className="w-full bg-white border border-amber-300 text-slate-900 text-sm rounded px-3 py-2 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
+                                  >
+                                    <option value="">Select Clarity</option>
+                                    <option value="FL">FL (Flawless)</option>
+                                    <option value="IF">IF (Internally Flawless)</option>
+                                    <option value="VVS1">VVS1</option>
+                                    <option value="VVS2">VVS2</option>
+                                    <option value="VS1">VS1</option>
+                                    <option value="VS2">VS2</option>
+                                    <option value="SI1">SI1</option>
+                                    <option value="SI2">SI2</option>
+                                  </select>
+                                </div>
+                                <div className="space-y-2">
+                                  <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase block">Color</label>
+                                  <select
+                                    value={(imageMetadata[imageKey] as any)?.color || (existingImage?.metadata as any)?.color || ''}
+                                    onChange={(e) => setImageMetadata({
+                                      ...imageMetadata,
+                                      [imageKey]: {
+                                        ...imageMetadata[imageKey],
+                                        color: e.target.value
+                                      } as any
+                                    })}
+                                    className="w-full bg-white border border-amber-300 text-slate-900 text-sm rounded px-3 py-2 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
+                                  >
+                                    <option value="">Select Color</option>
+                                    <option value="D">D</option>
+                                    <option value="E">E</option>
+                                    <option value="F">F</option>
+                                    <option value="G">G</option>
+                                    <option value="H">H</option>
+                                    <option value="I">I</option>
+                                    <option value="J">J</option>
+                                  </select>
+                                </div>
+                                <div className="space-y-2">
+                                  <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase block">Carat</label>
+                                  <Input
+                                    type="text"
+                                    placeholder="e.g., 1.5ct"
+                                    value={(imageMetadata[imageKey] as any)?.carat || (existingImage?.metadata as any)?.carat || (existingImage?.metadata as any)?.diamondCarat || ''}
+                                    onChange={(e) => setImageMetadata({
+                                      ...imageMetadata,
+                                      [imageKey]: {
+                                        ...imageMetadata[imageKey],
+                                        carat: e.target.value
+                                      } as any
+                                    })}
+                                    className="bg-white border-amber-300 text-slate-900 text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
+                                  />
+                                </div>
+                              </div>
                             )}
-                          </select>
-                        </div>
+
+                            {/* Gold subtype fields */}
+                            {(((imageMetadata[imageKey] as any)?.ringSubtype || (existingImage?.metadata as any)?.ringSubtype) === 'gold') && (
+                              <div className="grid grid-cols-5 gap-4">
+                                <div className="space-y-2">
+                                  <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase block">Purity / Karat</label>
+                                  <select
+                                    value={(imageMetadata[imageKey] as any)?.purityKarat || (existingImage?.metadata as any)?.purityKarat || (existingImage?.metadata as any)?.purity || ''}
+                                    onChange={(e) => setImageMetadata({
+                                      ...imageMetadata,
+                                      [imageKey]: {
+                                        ...imageMetadata[imageKey],
+                                        purityKarat: e.target.value
+                                      } as any
+                                    })}
+                                    className="w-full bg-white border border-amber-300 text-slate-900 text-sm rounded px-3 py-2 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
+                                  >
+                                    <option value="">Select Karat</option>
+                                    <option value="22K">22K</option>
+                                    <option value="18K">18K</option>
+                                    <option value="14K">14K</option>
+                                  </select>
+                                </div>
+                                <div className="space-y-2">
+                                  <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase block">Color / Finish</label>
+                                  <select
+                                    value={(imageMetadata[imageKey] as any)?.colorFinish || (existingImage?.metadata as any)?.colorFinish || ''}
+                                    onChange={(e) => setImageMetadata({
+                                      ...imageMetadata,
+                                      [imageKey]: {
+                                        ...imageMetadata[imageKey],
+                                        colorFinish: e.target.value
+                                      } as any
+                                    })}
+                                    className="w-full bg-white border border-amber-300 text-slate-900 text-sm rounded px-3 py-2 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
+                                  >
+                                    <option value="">Select Finish</option>
+                                    <option value="Yellow Gold">Yellow Gold</option>
+                                    <option value="Rose Gold">Rose Gold</option>
+                                    <option value="White Gold">White Gold</option>
+                                    <option value="Two-tone">Two-tone</option>
+                                  </select>
+                                </div>
+                                <div className="space-y-2">
+                                  <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase block">Type / Category</label>
+                                  <select
+                                    value={(imageMetadata[imageKey] as any)?.typeCategory || (existingImage?.metadata as any)?.typeCategory || (existingImage?.metadata as any)?.category || ''}
+                                    onChange={(e) => setImageMetadata({
+                                      ...imageMetadata,
+                                      [imageKey]: {
+                                        ...imageMetadata[imageKey],
+                                        typeCategory: e.target.value
+                                      } as any
+                                    })}
+                                    className="w-full bg-white border border-amber-300 text-slate-900 text-sm rounded px-3 py-2 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
+                                  >
+                                    <option value="">Select Category</option>
+                                    <option value="Solitaire">Solitaire</option>
+                                    <option value="Band">Band</option>
+                                    <option value="Cluster">Cluster</option>
+                                    <option value="Statement">Statement</option>
+                                  </select>
+                                </div>
+                                <div className="space-y-2">
+                                  <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase block">Weight</label>
+                                  <Input
+                                    type="text"
+                                    placeholder="e.g., 8.5g"
+                                    value={(imageMetadata[imageKey] as any)?.weight || (existingImage?.metadata as any)?.weight || ''}
+                                    onChange={(e) => setImageMetadata({
+                                      ...imageMetadata,
+                                      [imageKey]: {
+                                        ...imageMetadata[imageKey],
+                                        weight: e.target.value
+                                      } as any
+                                    })}
+                                    className="bg-white border-amber-300 text-slate-900 text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase block">Design / Style</label>
+                                  <select
+                                    value={(imageMetadata[imageKey] as any)?.designStyle || (existingImage?.metadata as any)?.designStyle || ''}
+                                    onChange={(e) => setImageMetadata({
+                                      ...imageMetadata,
+                                      [imageKey]: {
+                                        ...imageMetadata[imageKey],
+                                        designStyle: e.target.value
+                                      } as any
+                                    })}
+                                    className="w-full bg-white border border-amber-300 text-slate-900 text-sm rounded px-3 py-2 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
+                                  >
+                                    <option value="">Select Style</option>
+                                    <option value="Minimal">Minimal</option>
+                                    <option value="Vintage">Vintage</option>
+                                    <option value="Modern">Modern</option>
+                                    <option value="Traditional">Traditional</option>
+                                  </select>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Polki subtype fields */}
+                            {(((imageMetadata[imageKey] as any)?.ringSubtype || (existingImage?.metadata as any)?.ringSubtype) === 'polki') && (
+                              <div className="grid grid-cols-5 gap-4">
+                                <div className="space-y-2">
+                                  <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase block">Gold Purity</label>
+                                  <select
+                                    value={(imageMetadata[imageKey] as any)?.goldPurity || (existingImage?.metadata as any)?.goldPurity || ''}
+                                    onChange={(e) => setImageMetadata({
+                                      ...imageMetadata,
+                                      [imageKey]: {
+                                        ...imageMetadata[imageKey],
+                                        goldPurity: e.target.value
+                                      } as any
+                                    })}
+                                    className="w-full bg-white border border-amber-300 text-slate-900 text-sm rounded px-3 py-2 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
+                                  >
+                                    <option value="">Select Purity</option>
+                                    <option value="22K">22K</option>
+                                    <option value="18K">18K</option>
+                                  </select>
+                                </div>
+                                <div className="space-y-2">
+                                  <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase block">Polki Size / Number of Stones</label>
+                                  <Input
+                                    type="text"
+                                    placeholder="e.g., 10 stones / Medium"
+                                    value={(imageMetadata[imageKey] as any)?.polkiSizeOrCount || (existingImage?.metadata as any)?.polkiSizeOrCount || ''}
+                                    onChange={(e) => setImageMetadata({
+                                      ...imageMetadata,
+                                      [imageKey]: {
+                                        ...imageMetadata[imageKey],
+                                        polkiSizeOrCount: e.target.value
+                                      } as any
+                                    })}
+                                    className="bg-white border-amber-300 text-slate-900 text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase block">Type / Category</label>
+                                  <select
+                                    value={(imageMetadata[imageKey] as any)?.typeCategory || (existingImage?.metadata as any)?.typeCategory || (existingImage?.metadata as any)?.category || ''}
+                                    onChange={(e) => setImageMetadata({
+                                      ...imageMetadata,
+                                      [imageKey]: {
+                                        ...imageMetadata[imageKey],
+                                        typeCategory: e.target.value
+                                      } as any
+                                    })}
+                                    className="w-full bg-white border border-amber-300 text-slate-900 text-sm rounded px-3 py-2 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
+                                  >
+                                    <option value="">Select Category</option>
+                                    <option value="Solitaire">Solitaire</option>
+                                    <option value="Band">Band</option>
+                                    <option value="Cluster">Cluster</option>
+                                    <option value="Statement">Statement</option>
+                                  </select>
+                                </div>
+                                <div className="space-y-2">
+                                  <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase block">Design / Style</label>
+                                  <select
+                                    value={(imageMetadata[imageKey] as any)?.designStyle || (existingImage?.metadata as any)?.designStyle || ''}
+                                    onChange={(e) => setImageMetadata({
+                                      ...imageMetadata,
+                                      [imageKey]: {
+                                        ...imageMetadata[imageKey],
+                                        designStyle: e.target.value
+                                      } as any
+                                    })}
+                                    className="w-full bg-white border border-amber-300 text-slate-900 text-sm rounded px-3 py-2 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
+                                  >
+                                    <option value="">Select Style</option>
+                                    <option value="Minimal">Minimal</option>
+                                    <option value="Vintage">Vintage</option>
+                                    <option value="Modern">Modern</option>
+                                    <option value="Traditional">Traditional</option>
+                                  </select>
+                                </div>
+                                <div className="space-y-2">
+                                  <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase block">Weight</label>
+                                  <Input
+                                    type="text"
+                                    placeholder="e.g., 9.2g"
+                                    value={(imageMetadata[imageKey] as any)?.weight || (existingImage?.metadata as any)?.weight || ''}
+                                    onChange={(e) => setImageMetadata({
+                                      ...imageMetadata,
+                                      [imageKey]: {
+                                        ...imageMetadata[imageKey],
+                                        weight: e.target.value
+                                      } as any
+                                    })}
+                                    className="bg-white border-amber-300 text-slate-900 text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <label className="text-[9px] tracking-[0.2em] text-slate-600 uppercase block">Finish / Plating</label>
+                                  <select
+                                    value={(imageMetadata[imageKey] as any)?.finishPlating || (existingImage?.metadata as any)?.finishPlating || ''}
+                                    onChange={(e) => setImageMetadata({
+                                      ...imageMetadata,
+                                      [imageKey]: {
+                                        ...imageMetadata[imageKey],
+                                        finishPlating: e.target.value
+                                      } as any
+                                    })}
+                                    className="w-full bg-white border border-amber-300 text-slate-900 text-sm rounded px-3 py-2 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
+                                  >
+                                    <option value="">Select Finish</option>
+                                    <option value="Gold">Gold</option>
+                                    <option value="Rhodium">Rhodium</option>
+                                    <option value="Mixed">Mixed</option>
+                                  </select>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {/* Removed Jewelry Type/Subtype per request */}
                         {selectedSection === 'diamond-jewelry' && (
                           <div>
@@ -2208,7 +3899,7 @@ const [zoomPreview, setZoomPreview] = useState<{ show: boolean; url: string; alt
                       </label>
                       
                       {/* Save Button for sections with metadata */}
-                      {(selectedSection === 'featured-collections' || selectedSection === 'new-arrivals' || selectedSection === 'hero' || ['luxury-jewelry', 'gold-jewelry', 'diamond-jewelry', 'earrings', 'rings', 'daily-wear', 'gifting', 'wedding', 'more-collections', 'all-jewelry'].includes(selectedSection)) && existingImage && (
+                      {(isCustomSelected || selectedSection === 'featured-collections' || selectedSection === 'new-arrivals' || selectedSection === 'hero' || ['luxury-jewelry', 'gold-jewelry', 'diamond-jewelry', 'earrings', 'rings', 'daily-wear', 'gifting', 'wedding', 'more-collections', 'all-jewelry'].includes(selectedSection)) && existingImage && (
                         <button
                           type="button"
                           onClick={() => handleUpdateMetadata(imageKey)}
@@ -2216,7 +3907,7 @@ const [zoomPreview, setZoomPreview] = useState<{ show: boolean; url: string; alt
                         >
                           <Save className="w-4 h-4 text-white" strokeWidth={2} />
                           <span className="text-sm text-white">
-                            {selectedSection === 'new-arrivals' ? 'Save Product Details' : selectedSection === 'hero' ? 'Save Image' : ['luxury-jewelry', 'gold-jewelry', 'diamond-jewelry', 'earrings', 'rings', 'daily-wear', 'gifting', 'wedding', 'more-collections', 'all-jewelry'].includes(selectedSection) ? 'Save Jewelry Details' : 'Save Title & Description'}
+                            {isCustomSelected ? 'Save Custom Fields' : selectedSection === 'new-arrivals' ? 'Save Product Details' : selectedSection === 'hero' ? 'Save Image' : ['luxury-jewelry', 'gold-jewelry', 'diamond-jewelry', 'earrings', 'rings', 'daily-wear', 'gifting', 'wedding', 'more-collections', 'all-jewelry'].includes(selectedSection) ? 'Save Jewelry Details' : 'Save Title & Description'}
                           </span>
                         </button>
                       )}
