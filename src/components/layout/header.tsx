@@ -87,10 +87,19 @@ const navigation = [
   },
 ]
 
+// Inject dynamic custom sections discovered from uploaded images
+const BASE_SECTION_IDS = new Set([
+  'hero','featured-collections','new-arrivals','luxury-jewelry','brand-story','product-showcase',
+  'gold-jewelry','diamond-jewelry','all-jewelry','earrings','rings','bracelets','bangles','pendants',
+  'daily-wear','gifting','wedding','more-collections','jewelry-data-distributor'
+])
+const toTitleCase = (slug: string) => slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+
 export function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [customNav, setCustomNav] = useState<any[]>([])
   
   const { items: cartItems, isOpen: isCartOpen, openCart, getItemCount } = useCartStore()
   const { items: wishlistItems, openWishlist } = useWishlistStore()
@@ -115,6 +124,43 @@ export function Header() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  // Load custom sections from public images and admin localStorage into the header’s custom navigation, dedupe with image-derived sections, and map to /custom/:slug.
+  useEffect(() => {
+    async function loadCustomSections() {
+      try {
+        // Always prefer admin-defined custom sections; ignore arbitrary image-derived slugs
+        let localCustom: Array<{id: string, name: string}> = []
+        try {
+          if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('admin.customSections')
+            if (saved) {
+              const parsed = JSON.parse(saved)
+              if (Array.isArray(parsed)) {
+                localCustom = parsed.filter(s => s && typeof s.id === 'string' && s.id.trim())
+              }
+            }
+          }
+        } catch {}
+
+        const items = localCustom.map((s) => ({
+          name: s.name || toTitleCase(s.id),
+          href: `/custom/${s.id}`,
+          icon: Sparkles,
+          description: 'Custom Section'
+        }))
+
+        setCustomNav(items)
+      } catch (err) {
+        console.error('Navbar custom sections load failed:', err)
+      }
+    }
+    loadCustomSections()
+  }, [])
+
+  // Combine static navigation with custom sections, keeping "More" as last
+  const staticLeading = navigation.slice(0, -1)
+  const moreItem = navigation[navigation.length - 1]
+  const navItems = [...staticLeading, ...customNav, moreItem]
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
@@ -329,7 +375,7 @@ export function Header() {
         <div className="hidden lg:block bg-gradient-to-b from-white/80 to-white/60 backdrop-blur-xl border-t border-champagne-gold/20">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <nav className="flex items-center justify-center space-x-1 py-4">
-        {navigation.map((item, index) => {
+        {navItems.map((item, index) => {
         const IconComponent = item.icon
         return (
         <motion.div
@@ -416,7 +462,7 @@ export function Header() {
 
               <nav className="px-6 py-8">
                 <div className="space-y-6">
-                  {navigation.map((item) => (
+                  {navItems.map((item) => (
                     <Link
                       key={item.name}
                       href={item.href}

@@ -110,6 +110,11 @@ export async function POST(request: NextRequest) {
       if (jCat === 'diamond') typeSection = 'diamond-jewelry'
       else if (jCat === 'gold') typeSection = 'gold-jewelry'
     }
+    // Bracelets fallback duplication: match rings behavior
+    if (!typeSection && section === 'bracelets') {
+      if (jCat === 'diamond') typeSection = 'diamond-jewelry'
+      else if (jCat === 'gold') typeSection = 'gold-jewelry'
+    }
 
     const categorySection = normalizeCategorySection(jCat)
 

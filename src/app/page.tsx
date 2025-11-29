@@ -10,6 +10,7 @@ export default function HomePage() {
       <HeroSection />
       <FeaturedCollections />
       <ProductShowcase />
+      {/* Custom sections removed from homepage; they now have dedicated pages */}
       <BrandStory />
       <NewsletterSection />
     </div>
