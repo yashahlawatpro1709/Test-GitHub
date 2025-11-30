@@ -1597,6 +1597,10 @@ h1, h2, h3, h4, h5, h6 {
   min-width: 140px;
 }
 
+.min-w-\[160px\] {
+  min-width: 160px;
+}
+
 .min-w-\[180px\] {
   min-width: 180px;
 }
@@ -4008,6 +4012,10 @@ h1, h2, h3, h4, h5, h6 {
      object-fit: cover;
 }
 
+.p-0\.5 {
+  padding: 0.125rem;
+}
+
 .p-1 {
   padding: 0.25rem;
 }
@@ -4238,6 +4246,10 @@ h1, h2, h3, h4, h5, h6 {
 
 .pr-8 {
   padding-right: 2rem;
+}
+
+.pr-9 {
+  padding-right: 2.25rem;
 }
 
 .pt-0 {
@@ -5580,6 +5592,11 @@ h1, h2, h3, h4, h5, h6 {
   border-color: rgb(251 191 36 / 0.6);
 }
 
+.hover\:border-amber-500:hover {
+  --tw-border-opacity: 1;
+  border-color: rgb(245 158 11 / var(--tw-border-opacity, 1));
+}
+
 .hover\:border-champagne-gold:hover {
   --tw-border-opacity: 1;
   border-color: rgb(212 175 55 / var(--tw-border-opacity, 1));
@@ -5634,6 +5651,15 @@ h1, h2, h3, h4, h5, h6 {
 .hover\:bg-amber-100:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(254 243 199 / var(--tw-bg-opacity, 1));
+}
+
+.hover\:bg-amber-200:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(253 230 138 / var(--tw-bg-opacity, 1));
+}
+
+.hover\:bg-amber-200\/60:hover {
+  background-color: rgb(253 230 138 / 0.6);
 }
 
 .hover\:bg-amber-50:hover {
@@ -6129,6 +6155,11 @@ h1, h2, h3, h4, h5, h6 {
   --tw-ring-color: rgb(212 175 55 / var(--tw-ring-opacity, 1));
 }
 
+.focus\:border-amber-300:focus {
+  --tw-border-opacity: 1;
+  border-color: rgb(252 211 77 / var(--tw-border-opacity, 1));
+}
+
 .focus\:border-amber-500:focus {
   --tw-border-opacity: 1;
   border-color: rgb(245 158 11 / var(--tw-border-opacity, 1));
@@ -6418,6 +6449,11 @@ h1, h2, h3, h4, h5, h6 {
 .group:hover .group-hover\:text-amber-700 {
   --tw-text-opacity: 1;
   color: rgb(180 83 9 / var(--tw-text-opacity, 1));
+}
+
+.group:hover .group-hover\:text-amber-900 {
+  --tw-text-opacity: 1;
+  color: rgb(120 53 15 / var(--tw-text-opacity, 1));
 }
 
 .group:hover .group-hover\:text-blue-700 {
@@ -6819,6 +6855,10 @@ h1, h2, h3, h4, h5, h6 {
 
   .md\:w-6 {
     width: 1.5rem;
+  }
+
+  .md\:min-w-\[220px\] {
+    min-width: 220px;
   }
 
   .md\:max-w-\[420px\] {

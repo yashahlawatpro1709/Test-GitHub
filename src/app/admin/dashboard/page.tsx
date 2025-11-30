@@ -4,10 +4,11 @@ import { useEffect, useState, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Crown, LogOut, Upload, Image as ImageIcon, Trash2, Save, Loader2, Diamond, ZoomIn, GripVertical, X } from 'lucide-react'
-import { toast } from '@/hooks/use-toast'
-import Image from 'next/image'
+ import { Input } from '@/components/ui/input'
+ import { PremiumSelect } from '@/components/ui/select'
+ import { Crown, LogOut, Upload, Image as ImageIcon, Trash2, Save, Loader2, Diamond, ZoomIn, GripVertical, X, ChevronDown } from 'lucide-react'
+ import { toast } from '@/hooks/use-toast'
+ import Image from 'next/image'
 
 interface SiteImage {
   id: string
@@ -1542,17 +1543,83 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
       toast({ title: 'Reordered', description: 'New Arrivals updated' })
       await loadImages()
     } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Reorder failed', variant: 'destructive' })
-    }
+    toast({ title: 'Error', description: error.message || 'Reorder failed', variant: 'destructive' })
   }
+}
+
+// Generic drag-and-drop swap persistence for other addable sections
+const persistGenericSwap = async (sectionId: string, sourceKey: string, targetKey: string) => {
+  const sourceImage = images.find(img => img.imageKey === sourceKey)
+  const targetImage = images.find(img => img.imageKey === targetKey)
+  if (!sourceImage && !targetImage) return
+
+  try {
+    if (sourceImage && targetImage) {
+      const swapA = fetch('/api/admin/images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          section: sectionId,
+          imageKey: sourceKey,
+          url: targetImage.url,
+          alt: targetImage.alt,
+          title: targetImage.title || null,
+          description: targetImage.description || null,
+          metadata: targetImage.metadata || null,
+        }),
+      })
+      const swapB = fetch('/api/admin/images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          section: sectionId,
+          imageKey: targetKey,
+          url: sourceImage.url,
+          alt: sourceImage.alt,
+          title: sourceImage.title || null,
+          description: sourceImage.description || null,
+          metadata: sourceImage.metadata || null,
+        }),
+      })
+      const [resA, resB] = await Promise.all([swapA, swapB])
+      if (!resA.ok || !resB.ok) throw new Error('Swap failed')
+    } else if (sourceImage && !targetImage) {
+      const moveRes = await fetch('/api/admin/images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          section: sectionId,
+          imageKey: targetKey,
+          url: sourceImage.url,
+          alt: sourceImage.alt,
+          title: sourceImage.title || null,
+          description: sourceImage.description || null,
+          metadata: sourceImage.metadata || null,
+        }),
+      })
+      if (!moveRes.ok) throw new Error('Move failed')
+      await fetch(`/api/admin/images?id=${sourceImage.id}`, { method: 'DELETE' })
+    } else if (!sourceImage && targetImage) {
+      return
+    }
+
+    const sectionName = SECTIONS.find(s => s.id === sectionId)?.name || 'Section'
+    toast({ title: 'Reordered', description: `${sectionName} updated` })
+    await loadImages()
+  } catch (error: any) {
+    toast({ title: 'Error', description: error.message || 'Reorder failed', variant: 'destructive' })
+  }
+}
 
   const handleDragStart = (key: string) => {
-    if (selectedSection === 'hero' || selectedSection === 'featured-collections' || selectedSection === 'new-arrivals') setDragSourceKey(key)
+    const current = SECTIONS.find(s => s.id === selectedSection)
+    if (current?.allowAdd) setDragSourceKey(key)
   }
 
   // Auto-scroll page while dragging near viewport edges
   const handleDragOverAutoScroll = (e: React.DragEvent) => {
-    if (!(selectedSection === 'hero' || selectedSection === 'featured-collections' || selectedSection === 'new-arrivals')) return
+    const current = SECTIONS.find(s => s.id === selectedSection)
+    if (!current?.allowAdd) return
     e.preventDefault()
     const y = e.clientY
     const vh = window.innerHeight
@@ -1573,6 +1640,8 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
       persistFeaturedSwap(dragSourceKey, targetKey)
     } else if (selectedSection === 'new-arrivals') {
       persistArrivalsSwap(dragSourceKey, targetKey)
+    } else {
+      persistGenericSwap(selectedSection, dragSourceKey, targetKey)
     }
     setDragSourceKey(null)
   }
@@ -1580,7 +1649,8 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
   // Global dragover listener to support auto-scroll anywhere in viewport
   useEffect(() => {
     const onDragOver = (e: DragEvent) => {
-      if (!(selectedSection === 'hero' || selectedSection === 'featured-collections' || selectedSection === 'new-arrivals')) return
+      const current = SECTIONS.find(s => s.id === selectedSection)
+      if (!current?.allowAdd) return
       const y = e.clientY
       const vh = window.innerHeight
       const threshold = 120
@@ -2117,23 +2187,25 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
                     <div className="flex items-center gap-2 text-slate-400 mb-2"><GripVertical className="w-4 h-4" /><span className="text-[10px] uppercase tracking-[0.16em]">Drag to reorder</span></div>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
                       <div className="md:col-span-2">
-                        <label className="text-[10px] tracking-[0.25em] uppercase text-slate-600">Label</label>
+                        <label className="text-[10px] tracking-[0.25em] uppercase text-slate-700">Label</label>
                         <input
                           value={f.label}
                           onChange={(e) => updateField(selectedSection, f.id, { label: e.target.value })}
-                          className="mt-1 w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                          className="mt-1 w-full border border-slate-300 rounded px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-300 transition-shadow"
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] tracking-[0.25em] uppercase text-slate-600">Type</label>
-                        <select
-                          value={f.type}
-                          onChange={(e) => updateField(selectedSection, f.id, { type: e.target.value as any, options: e.target.value === 'dropdown' ? (f.options || ['Option 1']) : undefined })}
-                          className="mt-1 w-full border border-slate-300 rounded px-3 py-2 text-sm"
-                        >
-                          <option value="text">Text</option>
-                          <option value="dropdown">Dropdown</option>
-                        </select>
+                        <label className="text-[10px] tracking-[0.25em] uppercase text-slate-700">Type</label>
+                        <div className="mt-1">
+                          <PremiumSelect
+                            value={f.type}
+                            onChange={(val) => updateField(selectedSection, f.id, { type: val as any, options: (val as 'text' | 'dropdown') === 'dropdown' ? (f.options || ['Option 1']) : undefined })}
+                            options={[
+                              { value: 'text', label: 'Text' },
+                              { value: 'dropdown', label: 'Dropdown' },
+                            ]}
+                          />
+                        </div>
                       </div>
                       <div className="flex items-end justify-end">
                         <button onClick={() => removeField(selectedSection, f.id)} className="px-3 py-2 text-[10px] tracking-[0.25em] uppercase border border-red-300 bg-red-50 hover:bg-red-100 text-red-700">Delete</button>
@@ -2142,21 +2214,41 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
                     {f.type === 'dropdown' && (
                       <div className="mt-3">
                         <label className="text-[10px] tracking-[0.25em] uppercase text-slate-600">Options</label>
-                        <div className="mt-2 flex flex-wrap gap-2">
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
                           {(f.options || []).map(opt => (
-                            <span key={opt} className="px-3 py-1 text-[11px] rounded-full bg-white border border-amber-300 text-amber-800">
-                              {opt}
-                              <button onClick={() => removeDropdownOption(selectedSection, f.id, opt)} className="ml-2 text-[10px] text-red-600">✕</button>
+                            <span
+                              key={opt}
+                              className="group inline-flex items-center gap-2 px-3 py-1 text-[11px] rounded-full border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 transition-colors"
+                            >
+                              <span>{opt}</span>
+                              <button
+                                aria-label={`Remove ${opt}`}
+                                onClick={() => removeDropdownOption(selectedSection, f.id, opt)}
+                                className="inline-flex items-center justify-center rounded-full p-0.5 hover:bg-amber-200/60"
+                              >
+                                <X className="w-3.5 h-3.5 text-amber-700 group-hover:text-amber-900" />
+                              </button>
                             </span>
                           ))}
-                        </div>
-                        <div className="mt-2 flex gap-2">
                           <input
-                            placeholder="Add option"
-                            className="w-48 border border-slate-300 rounded px-3 py-2 text-sm"
+                            placeholder="Type and press Enter or ,"
+                            className="flex-1 min-w-[160px] md:min-w-[220px] border border-slate-300 rounded px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-300 transition-shadow"
                             onKeyDown={(e) => {
+                              const input = e.target as HTMLInputElement
+                              const val = input.value.trim()
+                              if ((e.key === 'Enter' || e.key === ',') && val) {
+                                addDropdownOption(selectedSection, f.id, val)
+                                input.value = ''
+                                e.preventDefault()
+                              }
+                              if (e.key === 'Backspace' && !input.value && (f.options || []).length) {
+                                const last = (f.options || [])[(f.options || []).length - 1]
+                                removeDropdownOption(selectedSection, f.id, last)
+                              }
+                            }}
+                            onBlur={(e) => {
                               const val = (e.target as HTMLInputElement).value.trim()
-                              if (e.key === 'Enter' && val) {
+                              if (val) {
                                 addDropdownOption(selectedSection, f.id, val)
                                 ;(e.target as HTMLInputElement).value = ''
                               }
@@ -2171,8 +2263,10 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
                                 input.value = ''
                               }
                             }}
-                            className="px-3 py-2 text-[10px] tracking-[0.25em] uppercase border border-amber-300 bg-amber-50 hover:bg-amber-100"
-                          >Add</button>
+                            className="px-4 py-2 text-[10px] tracking-[0.25em] uppercase border border-amber-400 bg-amber-100 text-amber-800 hover:bg-amber-200 hover:border-amber-500 transition-colors"
+                          >
+                            Add Option
+                          </button>
                         </div>
                       </div>
                     )}
@@ -2734,7 +2828,7 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
               const isUploading = uploading === imageKey || uploadingSet.has(imageKey)
 
               return (
-                <div key={imageKey} className="group relative bg-white border border-amber-200/60 hover:border-amber-400/60 transition-all duration-500 shadow-md shadow-amber-500/5 hover:shadow-lg hover:shadow-amber-500/10 overflow-hidden" draggable={selectedSection === 'hero' || selectedSection === 'featured-collections' || selectedSection === 'new-arrivals'} onDragStart={() => handleDragStart(imageKey)} onDragOver={handleDragOverAutoScroll} onDrop={() => handleDropSwap(imageKey)}>
+                <div key={imageKey} className="group relative bg-white border border-amber-200/60 hover:border-amber-400/60 transition-all duration-500 shadow-md shadow-amber-500/5 hover:shadow-lg hover:shadow-amber-500/10 overflow-hidden" draggable={Boolean(currentSection?.allowAdd)} onDragStart={() => handleDragStart(imageKey)} onDragOver={handleDragOverAutoScroll} onDrop={() => handleDropSwap(imageKey)}>
                   {/* Subtle corner decoration */}
                   <div className="absolute top-0 right-0 w-16 h-16 border-r border-t border-amber-300/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                   
