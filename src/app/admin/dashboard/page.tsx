@@ -3,10 +3,9 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
- import { Input } from '@/components/ui/input'
+import { Input } from '@/components/ui/input'
  import { PremiumSelect } from '@/components/ui/select'
- import { Crown, LogOut, Upload, Image as ImageIcon, Trash2, Save, Loader2, Diamond, ZoomIn, GripVertical, X, ChevronDown } from 'lucide-react'
+ import { Crown, LogOut, Upload, Image as ImageIcon, Trash2, Save, Loader2, Diamond, ZoomIn, GripVertical, X } from 'lucide-react'
  import { toast } from '@/hooks/use-toast'
  import Image from 'next/image'
 
@@ -314,14 +313,17 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
   // Custom Fields: per-section configuration and values (only for custom sections)
   const [customFieldsConfig, setCustomFieldsConfig] = useState<Record<string, CustomFieldDef[]>>({})
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, Record<string, Record<string, string>>>>({})
+  const [customFieldVisibility, setCustomFieldVisibility] = useState<Record<string, Record<string, Record<string, boolean>>>>({})
   const fieldsInitRef = useRef(false)
 
   useEffect(() => {
     try {
       const savedCfg = typeof window !== 'undefined' ? localStorage.getItem('admin.customFieldsConfig') : null
       const savedVals = typeof window !== 'undefined' ? localStorage.getItem('admin.customFieldsValues') : null
+      const savedVis = typeof window !== 'undefined' ? localStorage.getItem('admin.customFieldsVisibility') : null
       if (savedCfg) setCustomFieldsConfig(JSON.parse(savedCfg))
       if (savedVals) setCustomFieldValues(JSON.parse(savedVals))
+      if (savedVis) setCustomFieldVisibility(JSON.parse(savedVis))
     } catch {}
     fieldsInitRef.current = true
   }, [])
@@ -347,6 +349,17 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
       }
     } catch {}
   }, [customFieldValues])
+
+  useEffect(() => {
+    if (!fieldsInitRef.current) return
+    try {
+      if (typeof window !== 'undefined') {
+        const existing = localStorage.getItem('admin.customFieldsVisibility')
+        if (existing && Object.keys(customFieldVisibility).length === 0) return
+        localStorage.setItem('admin.customFieldsVisibility', JSON.stringify(customFieldVisibility))
+      }
+    } catch {}
+  }, [customFieldVisibility])
 
   const isCustomSelected = useMemo(() => customSections.some(s => s.id === selectedSection), [customSections, selectedSection])
 
@@ -406,6 +419,28 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
     setCustomFieldValues(next)
   }
 
+  const getVisibilityForCard = (sectionId: string, imageKey: string, fieldId: string) => {
+    const sectionVis = customFieldVisibility[sectionId] || {}
+    const cardVis = sectionVis[imageKey] || {}
+    // Default to true if value exists (legacy support), otherwise false
+    if (cardVis[fieldId] !== undefined) return cardVis[fieldId]
+    const val = getValueForCard(sectionId, imageKey, fieldId)
+    return !!val
+  }
+
+  const setVisibility = (sectionId: string, imageKey: string, fieldId: string, visible: boolean) => {
+    const sectionVis = customFieldVisibility[sectionId] || {}
+    const cardVis = sectionVis[imageKey] || {}
+    const next = {
+      ...customFieldVisibility,
+      [sectionId]: {
+        ...sectionVis,
+        [imageKey]: { ...cardVis, [fieldId]: visible }
+      }
+    }
+    setCustomFieldVisibility(next)
+  }
+
   // Drag & drop reordering for custom fields
   const [draggingFieldId, setDraggingFieldId] = useState<string | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
@@ -420,7 +455,7 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
     setCustomFieldsConfig(next)
   }
 
-  const onFieldDragStart = (index: number, fieldId: string) => {
+  const onFieldDragStart = (fieldId: string) => {
     setDraggingFieldId(fieldId)
     try { if (navigator?.vibrate) navigator.vibrate(10) } catch {}
   }
@@ -508,50 +543,6 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
     toast({ title: 'Section created', description: `Added \"${name}\" as a global section.` })
   }
 
-  // Delete custom section and clean up related state
-  const handleDeleteCustomSection = (id: string) => {
-    try {
-      const section = customSections.find(s => s.id === id)
-      const label = section?.name || id
-      if (typeof window !== 'undefined') {
-        const ok = window.confirm(`Delete custom section \"${label}\"? This will remove it from the admin and site navigation.`)
-        if (!ok) return
-      }
-      // Update custom sections
-      const updated = customSections.filter(s => s.id !== id)
-      setCustomSections(updated)
-      try { if (typeof window !== 'undefined') localStorage.setItem('admin.customSections', JSON.stringify(updated)) } catch {}
-
-      // Remove custom fields config/values for this section
-      setCustomFieldsConfig(prev => {
-        const { [id]: _removedCfg, ...rest } = prev
-        try { if (typeof window !== 'undefined') localStorage.setItem('admin.customFieldsConfig', JSON.stringify(rest)) } catch {}
-        return rest
-      })
-      setCustomFieldValues(prev => {
-        const { [id]: _removedVals, ...rest } = prev
-        try { if (typeof window !== 'undefined') localStorage.setItem('admin.customFieldsValues', JSON.stringify(rest)) } catch {}
-        return rest
-      })
-
-      // If currently selected is the deleted section, switch to a safe fallback
-      const deletedPageId = `${id}-page`
-      if (selectedPage === deletedPageId) {
-        const fallbackPage = PAGE_CATEGORIES[0]
-        setSelectedPage(fallbackPage.id)
-        setSelectedSection(fallbackPage.sections[0].id)
-      } else if (selectedSection === id) {
-        const currentPage = ALL_PAGES.find(p => p.id === selectedPage)
-        const fallbackSection = currentPage?.sections?.[0]?.id || PAGE_CATEGORIES[0].sections[0].id
-        setSelectedSection(fallbackSection)
-      }
-
-      toast({ title: 'Section deleted', description: `Removed \"${label}\" from admin and navigation.` })
-    } catch (err) {
-      console.error('Delete custom section failed:', err)
-      toast({ title: 'Delete failed', description: 'Could not delete this section.' })
-    }
-  }
 
   // Execute deletion without native confirm (used by premium modal)
   const performDeleteCustomSection = (id: string) => {
@@ -644,6 +635,73 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
     }
   }, [selectedSection, images])
 
+  // Hydrate custom fields from loaded images to ensure admin UI matches DB
+  useEffect(() => {
+    if (images.length === 0) return
+
+    setCustomFieldValues((prev) => {
+      const next = { ...prev }
+      let changed = false
+      const sectionVals = next[selectedSection] || {}
+
+      images.forEach((img) => {
+        if (img.metadata?.customFields && Array.isArray(img.metadata.customFields)) {
+          const cardVals = { ...(sectionVals[img.imageKey] || {}) }
+          let cardChanged = false
+          img.metadata.customFields.forEach((cf: any) => {
+            if (cf.id && cf.value !== undefined) {
+              if (cardVals[cf.id] !== cf.value) {
+                cardVals[cf.id] = cf.value
+                cardChanged = true
+              }
+            }
+          })
+          if (cardChanged) {
+            sectionVals[img.imageKey] = cardVals
+            changed = true
+          }
+        }
+      })
+
+      if (changed) {
+        next[selectedSection] = sectionVals
+        return next
+      }
+      return prev
+    })
+
+    setCustomFieldVisibility((prev) => {
+      const next = { ...prev }
+      let changed = false
+      const sectionVis = next[selectedSection] || {}
+
+      images.forEach((img) => {
+        if (img.metadata?.customFields && Array.isArray(img.metadata.customFields)) {
+          const cardVis = { ...(sectionVis[img.imageKey] || {}) }
+          let cardChanged = false
+          img.metadata.customFields.forEach((cf: any) => {
+            // Default to true if 'visible' property is missing (legacy data)
+            const isVisible = cf.visible !== false
+            if (cardVis[cf.id] !== isVisible) {
+              cardVis[cf.id] = isVisible
+              cardChanged = true
+            }
+          })
+          if (cardChanged) {
+            sectionVis[img.imageKey] = cardVis
+            changed = true
+          }
+        }
+      })
+
+      if (changed) {
+        next[selectedSection] = sectionVis
+        return next
+      }
+      return prev
+    })
+  }, [images, selectedSection])
+
   const checkAuth = async () => {
     try {
       const response = await fetch('/api/admin/auth/session')
@@ -706,22 +764,6 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
     return indices.length ? Math.max(...indices) : 0
   }
 
-  const addNewImageSlot = () => {
-    const currentSection = SECTIONS.find(s => s.id === selectedSection)
-    if (currentSection?.allowAdd) {
-      const prefix = getSectionPrefix(selectedSection)
-      const sectionImages = images.filter(img => img.section === selectedSection)
-      const existingKeys = sectionImages.map(img => img.imageKey)
-      const nextNumber = getMaxIndexFromKeys(existingKeys, prefix) + 1 || 1
-      const newKey = `${prefix}-${nextNumber}`
-      // If section is empty, start fresh; otherwise append
-      if (sectionImages.length === 0) {
-        setImageKeys([newKey])
-      } else {
-        setImageKeys([...imageKeys, newKey])
-      }
-    }
-  }
 
   const handleAddNewClick = () => {
     if (fileInputRef.current) {
@@ -937,12 +979,14 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
       if (isCustomSelected) {
         const sectionFields = getFieldsForSection(selectedSection)
         const valsForCard = (customFieldValues[selectedSection] || {})[imageKey] || {}
-        const customFieldsPayload = sectionFields.map((f) => ({
-          id: f.id,
-          label: f.label,
-          type: f.type,
-          value: (valsForCard as any)[f.id] ?? ''
-        })).filter((cf) => typeof cf.value === 'string' ? cf.value.trim() !== '' : !!cf.value)
+        const customFieldsPayload = sectionFields
+          .map((f) => ({
+            id: f.id,
+            label: f.label,
+            type: f.type,
+            value: (valsForCard as any)[f.id] ?? '',
+            visible: getVisibilityForCard(selectedSection, imageKey, f.id)
+          })).filter((cf) => typeof cf.value === 'string' ? cf.value.trim() !== '' : !!cf.value)
         metadataToSave.customFields = customFieldsPayload
       }
 
@@ -1130,7 +1174,17 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
       return
     }
 
-    const metadata = imageMetadata[imageKey] || {}
+    const userEdits = imageMetadata[imageKey] || {}
+    const { title: editTitle, description: editDesc, ...restEdits } = userEdits
+    
+    // Merge existing data with edits to prevent data loss
+    const metadata = {
+      ...(existingImage?.metadata || {}),
+      ...restEdits,
+      title: editTitle !== undefined ? editTitle : (existingImage?.title || ''),
+      description: editDesc !== undefined ? editDesc : (existingImage?.description || '')
+    }
+
     // Allow saving for custom sections even without title/description
     if (!isCustomSelected && selectedSection !== 'hero' && !metadata?.title && !metadata?.description) {
       toast({
@@ -1211,12 +1265,14 @@ const distributorInputRef = useRef<HTMLInputElement>(null)
       if (isCustomSelected) {
         const sectionFields = getFieldsForSection(selectedSection)
         const valsForCard = (customFieldValues[selectedSection] || {})[imageKey] || {}
-        const customFieldsPayload = sectionFields.map((f) => ({
-          id: f.id,
-          label: f.label,
-          type: f.type,
-          value: (valsForCard as any)[f.id] ?? ''
-        })).filter((cf) => typeof cf.value === 'string' ? cf.value.trim() !== '' : !!cf.value)
+        const customFieldsPayload = sectionFields
+          .map((f) => ({
+            id: f.id,
+            label: f.label,
+            type: f.type,
+            value: (valsForCard as any)[f.id] ?? '',
+            visible: getVisibilityForCard(selectedSection, imageKey, f.id)
+          })).filter((cf) => typeof cf.value === 'string' ? cf.value.trim() !== '' : !!cf.value)
         metadataToSave.customFields = customFieldsPayload
       }
 
@@ -2162,7 +2218,7 @@ const persistGenericSwap = async (sectionId: string, sourceKey: string, targetKe
                     className={`border border-amber-200 rounded p-4 transition-all duration-150 ease-out ${draggingFieldId === f.id ? 'ring-2 ring-amber-400/40 shadow-lg scale-[1.02] cursor-grabbing' : 'hover:shadow-sm cursor-grab'} ${dragOverIndex === idx ? 'ring-2 ring-amber-300/50' : ''}`}
                     style={{ animation: draggingFieldId === f.id ? 'bubblePop 180ms ease-out 1' : undefined }}
                     draggable
-                    onDragStart={() => onFieldDragStart(idx, f.id)}
+                    onDragStart={() => onFieldDragStart(f.id)}
                     onDragOver={(e) => onFieldDragOver(e, idx)}
                     onDragLeave={() => onFieldDragLeave()}
                     onDrop={(e) => onFieldDrop(idx, e)}
@@ -2835,10 +2891,20 @@ const persistGenericSwap = async (sectionId: string, sourceKey: string, targetKe
                   <div className="relative p-6 space-y-5">
                     {/* Header */}
                     <div className="flex items-center justify-between border-b border-amber-200/40 pb-4">
-                      <div>
-                        <h3 className="text-[10px] tracking-[0.25em] text-slate-700 uppercase font-light">
-                          {imageKey.replace(/-/g, ' ')}
-                        </h3>
+                      <div className="flex-1 mr-4">
+                        <input
+                          type="text"
+                          value={imageMetadata[imageKey]?.title !== undefined ? imageMetadata[imageKey]?.title : (existingImage?.title || '')}
+                          onChange={(e) => setImageMetadata({
+                            ...imageMetadata,
+                            [imageKey]: {
+                              ...imageMetadata[imageKey],
+                              title: e.target.value
+                            }
+                          })}
+                          className="w-full bg-transparent border-b border-transparent hover:border-amber-200 focus:border-amber-400 focus:outline-none text-[10px] tracking-[0.25em] text-slate-700 uppercase font-light placeholder:text-slate-300 transition-all duration-300"
+                          placeholder={imageKey.replace(/-/g, ' ')}
+                        />
                         {existingImage && (
                           <p className="text-[9px] text-amber-600/60 tracking-wider mt-1 flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
@@ -3090,27 +3156,41 @@ const persistGenericSwap = async (sectionId: string, sourceKey: string, targetKe
                           <div className="space-y-3">
                             {getFieldsForSection(selectedSection).map((f) => {
                               const val = getValueForCard(selectedSection, imageKey, f.id)
+                              const isVisible = getVisibilityForCard(selectedSection, imageKey, f.id)
                               return (
                                 <div key={`card-field-${f.id}`} className="space-y-3">
-                                  <label className="text-[10px] tracking-[0.12em] text-slate-600 uppercase block mb-2">{f.label}</label>
-                                  {f.type === 'text' ? (
-                                    <Input
-                                      type="text"
-                                      value={val}
-                                      onChange={(e) => setValue(selectedSection, imageKey, f.id, e.target.value)}
-                                      placeholder={`Enter ${f.label}`}
-                                      className="h-9 rounded-md bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 text-sm px-2.5 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30 transition-all duration-200"
-                                    />
-                                  ) : (
-                                    <select
-                                      value={val}
-                                      onChange={(e) => setValue(selectedSection, imageKey, f.id, e.target.value)}
-                                      className="h-9 rounded-md bg-white border border-slate-200 text-slate-900 text-sm px-2.5 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30 transition-all duration-200"
-                                    >
-                                      {(f.options || []).map((opt) => (
-                                        <option key={`${f.id}-${opt}`} value={opt}>{opt}</option>
-                                      ))}
-                                    </select>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <label className="text-[10px] tracking-[0.12em] text-slate-600 uppercase block">{f.label}</label>
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={isVisible}
+                                        onChange={(e) => setVisibility(selectedSection, imageKey, f.id, e.target.checked)}
+                                        className="w-3.5 h-3.5 text-amber-600 rounded border-slate-300 focus:ring-amber-500 cursor-pointer"
+                                      />
+                                      <span className="text-[9px] text-slate-400 uppercase tracking-wider">Show</span>
+                                    </div>
+                                  </div>
+                                  {isVisible && (
+                                    f.type === 'text' ? (
+                                      <Input
+                                        type="text"
+                                        value={val}
+                                        onChange={(e) => setValue(selectedSection, imageKey, f.id, e.target.value)}
+                                        placeholder={`Enter ${f.label}`}
+                                        className="h-9 rounded-md bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 text-sm px-2.5 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30 transition-all duration-200"
+                                      />
+                                    ) : (
+                                      <select
+                                        value={val}
+                                        onChange={(e) => setValue(selectedSection, imageKey, f.id, e.target.value)}
+                                        className="h-9 w-full rounded-md bg-white border border-slate-200 text-slate-900 text-sm px-2.5 focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30 transition-all duration-200"
+                                      >
+                                        {(f.options || []).map((opt) => (
+                                          <option key={`${f.id}-${opt}`} value={opt}>{opt}</option>
+                                        ))}
+                                      </select>
+                                    )
                                   )}
                                 </div>
                               )

@@ -152,7 +152,7 @@ export default function CustomSectionPage() {
                               </span>
                             )}
                             {Array.isArray(meta.customFields) && meta.customFields.map((cf: any) => (
-                              cf?.value ? (
+                              (cf?.value && cf.visible !== false) ? (
                                 <span key={cf.id || cf.label} className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">
                                   {cf.label}: {String(cf.value)}
                                 </span>
